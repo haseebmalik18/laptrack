@@ -45,8 +45,9 @@ export class LapRecorder {
   private saveLap() {
     if (this.currentLapData.length === 0) return;
 
+    const relativeLap = this.currentLapNumber - (this.baseLapNumber || 0) + 1;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const baseName = `lap_${this.relativeLapNumber}_${timestamp}`;
+    const baseName = `lap_${relativeLap}_${timestamp}`;
 
     const csvPath = path.join(this.outputDir, `${baseName}.csv`);
     const jsonPath = path.join(this.outputDir, `${baseName}.json`);
@@ -59,7 +60,7 @@ export class LapRecorder {
     fs.writeFileSync(csvPath, csvHeader + csvRows);
 
     const metadata: LapMetadata = {
-      lapNumber: this.relativeLapNumber,
+      lapNumber: relativeLap,
       trackName: 'Unknown',
       carName: 'Unknown',
       timestamp: new Date().toISOString(),
@@ -70,7 +71,7 @@ export class LapRecorder {
 
     fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
 
-    console.log(`Lap ${this.relativeLapNumber} saved: ${this.currentLapData.length} points`);
+    console.log(`Lap ${relativeLap} saved: ${this.currentLapData.length} points`);
   }
 
   getCurrentLapNumber(): number {
