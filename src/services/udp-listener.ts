@@ -1,7 +1,7 @@
-import * as dgram from 'dgram';
-import { F1TelemetryParser } from '../parsers/f1-2024-parser';
-import { LapRecorder } from './lap-recorder';
-import { NormalizedTelemetryPoint, PacketType } from '../types/f1-2024-packets';
+import * as dgram from "dgram";
+import { F1TelemetryParser } from "../parsers/f1-2024-parser";
+import { LapRecorder } from "./lap-recorder";
+import { NormalizedTelemetryPoint, PacketType } from "../types/f1-2024-packets";
 
 export class UDPListener {
   private socket: dgram.Socket;
@@ -12,20 +12,24 @@ export class UDPListener {
   private latestTelemetry: any = null;
   private latestLapData: any = null;
   private latestMotion: any = null;
+  private lastX: number = 0;
+  private lastY: number = 0;
+  private totalDistance: number = 0;
+  private currentLapNum: number = 0;
 
   constructor(port: number = 20777) {
     this.port = port;
-    this.socket = dgram.createSocket('udp4');
+    this.socket = dgram.createSocket("udp4");
     this.parser = new F1TelemetryParser();
     this.recorder = new LapRecorder();
   }
 
   start() {
-    this.socket.on('message', (msg: Buffer) => {
+    this.socket.on("message", (msg: Buffer) => {
       this.handlePacket(msg);
     });
 
-    this.socket.on('error', (err) => {
+    this.socket.on("error", (err) => {
       console.error(`Socket error: ${err.message}`);
       this.socket.close();
     });
@@ -43,7 +47,8 @@ export class UDPListener {
       case PacketType.CAR_TELEMETRY:
         const telemetry = this.parser.parseCarTelemetry(buffer);
         if (telemetry) {
-          this.latestTelemetry = telemetry.carTelemetryData[header.playerCarIndex];
+          this.latestTelemetry =
+            telemetry.carTelemetryData[header.playerCarIndex];
           this.mergeAndRecord(header);
         }
         break;
@@ -71,11 +76,31 @@ export class UDPListener {
       return;
     }
 
+    if (this.latestLapData.currentLapNum !== this.currentLapNum && this.currentLapNum !== 0) {
+      this.totalDistance = 0;
+      this.lastX = 0;
+      this.lastY = 0;
+    }
+    this.currentLapNum = this.latestLapData.currentLapNum;
+
+    const currentX = this.latestMotion.worldPositionX;
+    const currentY = this.latestMotion.worldPositionZ;
+
+    if (this.lastX !== 0 || this.lastY !== 0) {
+      const dx = currentX - this.lastX;
+      const dy = currentY - this.lastY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      this.totalDistance += distance;
+    }
+
+    this.lastX = currentX;
+    this.lastY = currentY;
+
     const point: NormalizedTelemetryPoint = {
       time: header.sessionTime,
-      distance: this.latestLapData.lapDistance,
-      x: this.latestMotion.worldPositionX,
-      y: this.latestMotion.worldPositionZ,
+      distance: this.totalDistance,
+      x: currentX,
+      y: currentY,
       speed: this.latestTelemetry.speed,
       throttle: this.latestTelemetry.throttle,
       brake: this.latestTelemetry.brake,
@@ -91,6 +116,6 @@ export class UDPListener {
 
   stop() {
     this.socket.close();
-    console.log('Listener stopped');
+    console.log("Listener stopped");
   }
 }

@@ -1,0 +1,82 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
+
+export interface LapInfo {
+  filePath: string;
+  lapNumber: number;
+  timestamp: string;
+  pointCount: number;
+}
+
+export class LapLoader {
+  private lapsDir: string;
+
+  constructor(lapsDir: string = './laps') {
+    this.lapsDir = lapsDir;
+  }
+
+  listAvailableLaps(): LapInfo[] {
+    if (!fs.existsSync(this.lapsDir)) {
+      return [];
+    }
+
+    const files = fs.readdirSync(this.lapsDir)
+      .filter(f => f.endsWith('.json'))
+      .map(f => {
+        const jsonPath = path.join(this.lapsDir, f);
+        const metadata = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+        return {
+          filePath: jsonPath.replace('.json', '.csv'),
+          lapNumber: metadata.lapNumber,
+          timestamp: metadata.timestamp,
+          pointCount: metadata.pointCount,
+        };
+      })
+      .sort((a, b) => a.lapNumber - b.lapNumber);
+
+    return files;
+  }
+
+  loadLap(csvPath: string): NormalizedTelemetryPoint[] {
+    const content = fs.readFileSync(csvPath, 'utf-8');
+    const lines = content.split('\n').slice(1);
+
+    const points: NormalizedTelemetryPoint[] = [];
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      const parts = line.split(',').map(p => parseFloat(p));
+      if (parts.length < 11) continue;
+
+      points.push({
+        time: parts[0],
+        distance: parts[1],
+        x: parts[2],
+        y: parts[3],
+        speed: parts[4],
+        throttle: parts[5],
+        brake: parts[6],
+        steering: parts[7],
+        gear: parts[8],
+        gLat: parts[9],
+        gLong: parts[10],
+        lapNum: 0,
+      });
+    }
+
+    return points;
+  }
+
+  loadLapByNumber(lapNumber: number): NormalizedTelemetryPoint[] | null {
+    const laps = this.listAvailableLaps();
+    const lap = laps.find(l => l.lapNumber === lapNumber);
+
+    if (!lap) {
+      return null;
+    }
+
+    return this.loadLap(lap.filePath);
+  }
+}

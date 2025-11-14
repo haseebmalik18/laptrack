@@ -17,6 +17,8 @@ export class LapRecorder {
   private currentLapNumber: number = 0;
   private baseLapNumber: number | null = null;
   private outputDir: string;
+  private lastLogTime: number = 0;
+  private lapCounter: number = 0;
 
   constructor(outputDir: string = './laps') {
     this.outputDir = outputDir;
@@ -26,28 +28,36 @@ export class LapRecorder {
   }
 
   addTelemetryPoint(point: NormalizedTelemetryPoint) {
+    const now = Date.now();
+    if (now - this.lastLogTime > 2000) {
+      console.log(`DEBUG: F1_lapNum=${point.lapNum}, ourLap=${this.lapCounter}, points=${this.currentLapData.length}`);
+      this.lastLogTime = now;
+    }
+
+    if (point.lapNum === 0) return;
+
     if (this.baseLapNumber === null && point.lapNum > 0) {
       this.baseLapNumber = point.lapNum;
+      console.log(`Base lap set to ${this.baseLapNumber}`);
     }
-
-    if (this.baseLapNumber === null) return;
 
     if (point.lapNum !== this.currentLapNumber) {
-      if (this.currentLapData.length > 0 && this.currentLapNumber > 0) {
+      if (this.currentLapData.length > 100 && this.currentLapNumber > 0) {
+        this.lapCounter++;
         this.saveLap();
+        this.currentLapData = [];
       }
       this.currentLapNumber = point.lapNum;
-      this.currentLapData = [];
     }
+
     this.currentLapData.push(point);
   }
 
   private saveLap() {
     if (this.currentLapData.length === 0) return;
 
-    const relativeLap = this.currentLapNumber - (this.baseLapNumber || 0) + 1;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const baseName = `lap_${relativeLap}_${timestamp}`;
+    const baseName = `lap_${this.lapCounter}_${timestamp}`;
 
     const csvPath = path.join(this.outputDir, `${baseName}.csv`);
     const jsonPath = path.join(this.outputDir, `${baseName}.json`);
@@ -60,7 +70,7 @@ export class LapRecorder {
     fs.writeFileSync(csvPath, csvHeader + csvRows);
 
     const metadata: LapMetadata = {
-      lapNumber: relativeLap,
+      lapNumber: this.lapCounter,
       trackName: 'Unknown',
       carName: 'Unknown',
       timestamp: new Date().toISOString(),
@@ -71,7 +81,7 @@ export class LapRecorder {
 
     fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
 
-    console.log(`Lap ${relativeLap} saved: ${this.currentLapData.length} points`);
+    console.log(`Lap ${this.lapCounter} saved: ${this.currentLapData.length} points`);
   }
 
   getCurrentLapNumber(): number {
