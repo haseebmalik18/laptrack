@@ -2,6 +2,7 @@ import * as dgram from "dgram";
 import { F1TelemetryParser } from "../parsers/f1-2024-parser";
 import { LapRecorder } from "./lap-recorder";
 import { NormalizedTelemetryPoint, PacketType } from "../types/f1-2024-packets";
+import { getTrackName, getTeamName } from "../constants/f1-2024-constants";
 
 export class UDPListener {
   private socket: dgram.Socket;
@@ -16,6 +17,8 @@ export class UDPListener {
   private lastY: number = 0;
   private totalDistance: number = 0;
   private currentLapNum: number = 0;
+  private trackName: string = "Unknown";
+  private carName: string = "Unknown";
 
   constructor(port: number = 20777) {
     this.port = port;
@@ -66,6 +69,23 @@ export class UDPListener {
         if (motion) {
           this.latestMotion = motion.carMotionData[header.playerCarIndex];
           this.mergeAndRecord(header);
+        }
+        break;
+
+      case PacketType.SESSION:
+        const session = this.parser.parseSessionData(buffer);
+        if (session) {
+          this.trackName = getTrackName(session.sessionData.trackId);
+          this.recorder.setTrackName(this.trackName);
+        }
+        break;
+
+      case PacketType.PARTICIPANTS:
+        const participants = this.parser.parseParticipantsData(buffer);
+        if (participants) {
+          const playerData = participants.participants[header.playerCarIndex];
+          this.carName = getTeamName(playerData.teamId);
+          this.recorder.setCarName(this.carName);
         }
         break;
     }

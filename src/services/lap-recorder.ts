@@ -17,8 +17,9 @@ export class LapRecorder {
   private currentLapNumber: number = 0;
   private baseLapNumber: number | null = null;
   private outputDir: string;
-  private lastLogTime: number = 0;
   private lapCounter: number = 0;
+  private trackName: string = "Unknown";
+  private carName: string = "Unknown";
 
   constructor(outputDir: string = './laps') {
     this.outputDir = outputDir;
@@ -28,17 +29,10 @@ export class LapRecorder {
   }
 
   addTelemetryPoint(point: NormalizedTelemetryPoint) {
-    const now = Date.now();
-    if (now - this.lastLogTime > 2000) {
-      console.log(`DEBUG: F1_lapNum=${point.lapNum}, ourLap=${this.lapCounter}, points=${this.currentLapData.length}`);
-      this.lastLogTime = now;
-    }
-
     if (point.lapNum === 0) return;
 
     if (this.baseLapNumber === null && point.lapNum > 0) {
       this.baseLapNumber = point.lapNum;
-      console.log(`Base lap set to ${this.baseLapNumber}`);
     }
 
     if (point.lapNum !== this.currentLapNumber) {
@@ -71,8 +65,8 @@ export class LapRecorder {
 
     const metadata: LapMetadata = {
       lapNumber: this.lapCounter,
-      trackName: 'Unknown',
-      carName: 'Unknown',
+      trackName: this.trackName,
+      carName: this.carName,
       timestamp: new Date().toISOString(),
       lapTimeMs: this.currentLapData[this.currentLapData.length - 1]?.time || 0,
       isValid: true,
@@ -82,6 +76,14 @@ export class LapRecorder {
     fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
 
     console.log(`Lap ${this.lapCounter} saved: ${this.currentLapData.length} points`);
+  }
+
+  setTrackName(trackName: string) {
+    this.trackName = trackName;
+  }
+
+  setCarName(carName: string) {
+    this.carName = carName;
   }
 
   getCurrentLapNumber(): number {

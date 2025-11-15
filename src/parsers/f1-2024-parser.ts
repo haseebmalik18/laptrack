@@ -4,9 +4,13 @@ import {
   PacketCarTelemetryData,
   PacketLapData,
   PacketMotionData,
+  PacketSessionData,
+  PacketParticipantsData,
   CarTelemetryData,
   LapData,
   CarMotionData,
+  SessionData,
+  ParticipantData,
 } from '../types/f1-2024-packets';
 
 export class F1TelemetryParser {
@@ -183,6 +187,108 @@ export class F1TelemetryParser {
     return {
       header,
       carMotionData,
+    };
+  }
+
+  parseSessionData(buffer: Buffer): PacketSessionData | null {
+    const header = this.parseHeader(buffer);
+    if (header.packetId !== PacketType.SESSION) return null;
+
+    let offset = 29;
+
+    const sessionData: SessionData = {
+      weather: buffer.readUInt8(offset),
+      trackTemperature: buffer.readInt8(offset + 1),
+      airTemperature: buffer.readInt8(offset + 2),
+      totalLaps: buffer.readUInt8(offset + 3),
+      trackLength: buffer.readUInt16LE(offset + 4),
+      sessionType: buffer.readUInt8(offset + 6),
+      trackId: buffer.readInt8(offset + 7),
+      formula: buffer.readUInt8(offset + 8),
+      sessionTimeLeft: buffer.readUInt16LE(offset + 9),
+      sessionDuration: buffer.readUInt16LE(offset + 11),
+      pitSpeedLimit: buffer.readUInt8(offset + 13),
+      gamePaused: buffer.readUInt8(offset + 14),
+      isSpectating: buffer.readUInt8(offset + 15),
+      spectatorCarIndex: buffer.readUInt8(offset + 16),
+      sliProNativeSupport: buffer.readUInt8(offset + 17),
+      numMarshalZones: buffer.readUInt8(offset + 18),
+      marshalZones: [],
+      safetyCarStatus: buffer.readUInt8(offset + 19 + 21 * 5),
+      networkGame: buffer.readUInt8(offset + 124),
+      numWeatherForecastSamples: buffer.readUInt8(offset + 125),
+      weatherForecastSamples: [],
+      forecastAccuracy: buffer.readUInt8(offset + 126 + 56 * 8),
+      aiDifficulty: buffer.readUInt8(offset + 575),
+      seasonLinkIdentifier: buffer.readUInt32LE(offset + 576),
+      weekendLinkIdentifier: buffer.readUInt32LE(offset + 580),
+      sessionLinkIdentifier: buffer.readUInt32LE(offset + 584),
+      pitStopWindowIdealLap: buffer.readUInt8(offset + 588),
+      pitStopWindowLatestLap: buffer.readUInt8(offset + 589),
+      pitStopRejoinPosition: buffer.readUInt8(offset + 590),
+      steeringAssist: buffer.readUInt8(offset + 591),
+      brakingAssist: buffer.readUInt8(offset + 592),
+      gearboxAssist: buffer.readUInt8(offset + 593),
+      pitAssist: buffer.readUInt8(offset + 594),
+      pitReleaseAssist: buffer.readUInt8(offset + 595),
+      ERSAssist: buffer.readUInt8(offset + 596),
+      DRSAssist: buffer.readUInt8(offset + 597),
+      dynamicRacingLine: buffer.readUInt8(offset + 598),
+      dynamicRacingLineType: buffer.readUInt8(offset + 599),
+      gameMode: buffer.readUInt8(offset + 600),
+      ruleSet: buffer.readUInt8(offset + 601),
+      timeOfDay: buffer.readUInt32LE(offset + 602),
+      sessionLength: buffer.readUInt8(offset + 606),
+      speedUnitsLeadPlayer: buffer.readUInt8(offset + 607),
+      temperatureUnitsLeadPlayer: buffer.readUInt8(offset + 608),
+      speedUnitsSecondaryPlayer: buffer.readUInt8(offset + 609),
+      temperatureUnitsSecondaryPlayer: buffer.readUInt8(offset + 610),
+      numSafetyCarPeriods: buffer.readUInt8(offset + 611),
+      numVirtualSafetyCarPeriods: buffer.readUInt8(offset + 612),
+      numRedFlagPeriods: buffer.readUInt8(offset + 613),
+    };
+
+    return {
+      header,
+      sessionData,
+    };
+  }
+
+  parseParticipantsData(buffer: Buffer): PacketParticipantsData | null {
+    const header = this.parseHeader(buffer);
+    if (header.packetId !== PacketType.PARTICIPANTS) return null;
+
+    let offset = 29;
+    const numActiveCars = buffer.readUInt8(offset);
+    offset += 1;
+
+    const participants: ParticipantData[] = [];
+
+    for (let i = 0; i < 22; i++) {
+      const nameBytes = buffer.subarray(offset + 7, offset + 55);
+      const nameStr = nameBytes.toString('utf-8').replace(/\0/g, '').trim();
+
+      participants.push({
+        aiControlled: buffer.readUInt8(offset),
+        driverId: buffer.readUInt8(offset + 1),
+        networkId: buffer.readUInt8(offset + 2),
+        teamId: buffer.readUInt8(offset + 3),
+        myTeam: buffer.readUInt8(offset + 4),
+        raceNumber: buffer.readUInt8(offset + 5),
+        nationality: buffer.readUInt8(offset + 6),
+        name: nameStr,
+        yourTelemetry: buffer.readUInt8(offset + 55),
+        showOnlineNames: buffer.readUInt8(offset + 56),
+        platform: buffer.readUInt8(offset + 57),
+      });
+
+      offset += 58;
+    }
+
+    return {
+      header,
+      numActiveCars,
+      participants,
     };
   }
 }

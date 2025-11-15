@@ -122,6 +122,83 @@ export interface PacketMotionData {
   carMotionData: CarMotionData[];
 }
 
+export interface SessionData {
+  weather: number;
+  trackTemperature: number;
+  airTemperature: number;
+  totalLaps: number;
+  trackLength: number;
+  sessionType: number;
+  trackId: number;
+  formula: number;
+  sessionTimeLeft: number;
+  sessionDuration: number;
+  pitSpeedLimit: number;
+  gamePaused: number;
+  isSpectating: number;
+  spectatorCarIndex: number;
+  sliProNativeSupport: number;
+  numMarshalZones: number;
+  marshalZones: any[];
+  safetyCarStatus: number;
+  networkGame: number;
+  numWeatherForecastSamples: number;
+  weatherForecastSamples: any[];
+  forecastAccuracy: number;
+  aiDifficulty: number;
+  seasonLinkIdentifier: number;
+  weekendLinkIdentifier: number;
+  sessionLinkIdentifier: number;
+  pitStopWindowIdealLap: number;
+  pitStopWindowLatestLap: number;
+  pitStopRejoinPosition: number;
+  steeringAssist: number;
+  brakingAssist: number;
+  gearboxAssist: number;
+  pitAssist: number;
+  pitReleaseAssist: number;
+  ERSAssist: number;
+  DRSAssist: number;
+  dynamicRacingLine: number;
+  dynamicRacingLineType: number;
+  gameMode: number;
+  ruleSet: number;
+  timeOfDay: number;
+  sessionLength: number;
+  speedUnitsLeadPlayer: number;
+  temperatureUnitsLeadPlayer: number;
+  speedUnitsSecondaryPlayer: number;
+  temperatureUnitsSecondaryPlayer: number;
+  numSafetyCarPeriods: number;
+  numVirtualSafetyCarPeriods: number;
+  numRedFlagPeriods: number;
+}
+
+export interface PacketSessionData {
+  header: PacketHeader;
+  sessionData: SessionData;
+}
+
+export interface ParticipantData {
+  aiControlled: number;
+  driverId: number;
+  networkId: number;
+  teamId: number;
+  myTeam: number;
+  raceNumber: number;
+  nationality: number;
+  name: string;
+  yourTelemetry: number;
+  showOnlineNames: number;
+  platform: number;
+}
+
+export interface PacketParticipantsData {
+  header: PacketHeader;
+  numActiveCars: number;
+  participants: ParticipantData[];
+}
+
 export interface NormalizedTelemetryPoint {
   time: number;
   distance: number;
