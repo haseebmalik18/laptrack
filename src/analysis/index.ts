@@ -9,3 +9,4 @@ export { detectCornersByCurvature, CurvatureDetectionConfig } from './curvature-
 export { detectCornersYawCurvature, YawCurvatureConfig } from './yaw-curvature-detector';
 export { detectBrakingZones, associateBrakingZonesWithCorners, getBrakingStatistics, BrakingZone, BrakingZoneConfig, BrakingIntensity } from './braking-zone-detector';
 export { SpeedComparisonAnalyzer, SpeedComparison, CornerSpeedComparison, AccelerationZone, SpeedComparisonSummary, SpeedComparisonConfig, SpeedPoint, BrakingComparison } from './speed-comparison';
+export { SectorAnalyzer, SectorAnalysis, SectorComparison, SectorTime, SectorBoundary, SectorConfig } from './sector-analysis';
