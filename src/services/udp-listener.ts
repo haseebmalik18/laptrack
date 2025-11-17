@@ -129,6 +129,7 @@ export class UDPListener {
       lapNum: this.latestLapData.currentLapNum,
       gLat: this.latestMotion.gForceLateral,
       gLong: this.latestMotion.gForceLongitudinal,
+      yaw: this.latestMotion.yaw,
     };
 
     this.recorder.addTelemetryPoint(point);

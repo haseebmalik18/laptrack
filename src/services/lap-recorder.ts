@@ -56,9 +56,9 @@ export class LapRecorder {
     const csvPath = path.join(this.outputDir, `${baseName}.csv`);
     const jsonPath = path.join(this.outputDir, `${baseName}.json`);
 
-    const csvHeader = 'time,distance,x,y,speed,throttle,brake,steering,gear,gLat,gLong\n';
+    const csvHeader = 'time,distance,x,y,speed,throttle,brake,steering,gear,gLat,gLong,yaw\n';
     const csvRows = this.currentLapData.map(p =>
-      `${p.time},${p.distance},${p.x},${p.y},${p.speed},${p.throttle},${p.brake},${p.steering},${p.gear},${p.gLat},${p.gLong}`
+      `${p.time},${p.distance},${p.x},${p.y},${p.speed},${p.throttle},${p.brake},${p.steering},${p.gear},${p.gLat},${p.gLong},${p.yaw}`
     ).join('\n');
 
     fs.writeFileSync(csvPath, csvHeader + csvRows);

@@ -62,6 +62,7 @@ export class LapLoader {
         gear: parts[8],
         gLat: parts[9],
         gLong: parts[10],
+        yaw: parts[11] || 0, // Backwards compatibility for old laps
         lapNum: 0,
       });
     }

@@ -212,4 +212,5 @@ export interface NormalizedTelemetryPoint {
   lapNum: number;
   gLat: number;
   gLong: number;
+  yaw: number;
 }
