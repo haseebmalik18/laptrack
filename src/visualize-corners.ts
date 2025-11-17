@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import { LapLoader, LapNormalizer, detectCornersYawCurvature } from './analysis';
+import { LapLoader, LapNormalizer, CornerDatabase } from './analysis';
 
 const loader = new LapLoader('./laps');
 const rawTelemetry = loader.loadLapByNumber(1)!;
@@ -7,13 +7,14 @@ const rawTelemetry = loader.loadLapByNumber(1)!;
 const normalizer = new LapNormalizer({ sampleRate: 1.0 });
 const telemetry = normalizer.normalize(rawTelemetry);
 
-const corners = detectCornersYawCurvature(telemetry, {
-  minYawRateThreshold: 0.045,
-  minCurvatureThreshold: 0.0022,
-  minCornerLength: 45,
-  minCornerDuration: 0.3,
-  cornerMergeDistance: 18,
-});
+const jsonPath = './laps/lap_1_2025-11-17T00-13-07-680Z.json';
+const metadata = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+const trackId = metadata.trackId ?? 3;
+const trackName = metadata.trackName ?? 'Unknown';
+
+const db = new CornerDatabase('./corners');
+const trackData = db.loadTrackCorners(trackName, trackId)!;
+const corners = trackData.corners;
 
 // Rotate 270 degrees counter-clockwise (or 90 clockwise): new_x = y, new_y = -x
 const rotatedPoints = telemetry.map(p => ({
@@ -37,13 +38,13 @@ const width = 1200;
 const height = 800;
 const margin = 50;
 
-function scaleX(x: number, y: number): number {
-  const rx = y; // Rotate 270° CCW
+function scaleX(_x: number, y: number): number {
+  const rx = y;
   return margin + ((rx - minX) / (maxX - minX)) * (width - 2 * margin);
 }
 
-function scaleY(x: number, y: number): number {
-  const ry = -x; // Rotate 270° CCW
+function scaleY(x: number, _y: number): number {
+  const ry = -x;
   return margin + ((ry - minY) / (maxY - minY)) * (height - 2 * margin);
 }
 
@@ -69,6 +70,7 @@ const html = `<!DOCTYPE html>
   </div>
 
   <div class="corner-legend">
+    <div class="legend-item"><div class="color-box" style="background: #ff0000;"></div>Braking Zones</div>
     <div class="legend-item"><div class="color-box" style="background: #ff4444;"></div>Hairpin (&lt;80 km/h)</div>
     <div class="legend-item"><div class="color-box" style="background: #ffaa44;"></div>Slow (80-120 km/h)</div>
     <div class="legend-item"><div class="color-box" style="background: #44aaff;"></div>Medium (120-180 km/h)</div>
@@ -112,8 +114,34 @@ const html = `<!DOCTYPE html>
       `;
     }).join('')}
 
+    <!-- Braking zones -->
+    ${corners.map(corner => {
+      if (!corner.brakingZone) return '';
+
+      const bz = corner.brakingZone;
+      const brakingPoints = telemetry.filter(p =>
+        p.distance >= bz.entryDistance && p.distance <= bz.exitDistance
+      );
+
+      if (brakingPoints.length === 0) return '';
+
+      const brakingPath = brakingPoints.map(p =>
+        `${scaleX(p.x!, p.y!)},${scaleY(p.x!, p.y!)}`
+      ).join(' ');
+
+      return `
+        <polyline
+          points="${brakingPath}"
+          fill="none"
+          stroke="#ff0000"
+          stroke-width="6"
+          opacity="0.6"
+        />
+      `;
+    }).join('')}
+
     <!-- Detected corners -->
-    ${corners.map((corner, idx) => {
+    ${corners.map((corner) => {
       const entryP = telemetry.find(p => Math.abs(p.distance - corner.entryDistance) < 1);
       const apexP = telemetry.find(p => Math.abs(p.distance - corner.apexDistance) < 1);
       const exitP = telemetry.find(p => Math.abs(p.distance - corner.exitDistance) < 1);
@@ -127,25 +155,8 @@ const html = `<!DOCTYPE html>
         corner.type === 'fast' ? '#44ff44' :
         '#ff44ff';
 
-      // Get all telemetry points within this corner
-      const cornerPoints = telemetry.filter(p =>
-        p.distance >= corner.entryDistance && p.distance <= corner.exitDistance
-      );
-
-      // Create polyline path through corner to show actual curve
-      const cornerPath = cornerPoints.map(p =>
-        `${scaleX(p.x!, p.y!)},${scaleY(p.x!, p.y!)}`
-      ).join(' ');
-
       return `
-        <!-- Corner ${corner.id} -->
-        <polyline
-          points="${cornerPath}"
-          fill="none"
-          stroke="${color}"
-          stroke-width="8"
-          opacity="0.7"
-        />
+        <!-- Corner ${corner.number} -->
         <circle
           cx="${scaleX(apexP.x!, apexP.y!)}"
           cy="${scaleY(apexP.x!, apexP.y!)}"
@@ -164,7 +175,7 @@ const html = `<!DOCTYPE html>
           stroke="#000"
           stroke-width="3"
           paint-order="stroke"
-        >${corner.id}</text>
+        >${corner.number}</text>
       `;
     }).join('')}
   </svg>
@@ -175,17 +186,23 @@ const html = `<!DOCTYPE html>
       <tr style="background: #333; text-align: left;">
         <th style="padding: 10px; border: 1px solid #555;">Corner</th>
         <th style="padding: 10px; border: 1px solid #555;">Type</th>
-        <th style="padding: 10px; border: 1px solid #555;">Direction</th>
-        <th style="padding: 10px; border: 1px solid #555;">Distance Range</th>
-        <th style="padding: 10px; border: 1px solid #555;">Length</th>
+        <th style="padding: 10px; border: 1px solid #555;">Dir</th>
+        <th style="padding: 10px; border: 1px solid #555;">Distance</th>
+        <th style="padding: 10px; border: 1px solid #555;">Brake Dist</th>
+        <th style="padding: 10px; border: 1px solid #555;">Speed Loss</th>
+        <th style="padding: 10px; border: 1px solid #555;">Intensity</th>
+        <th style="padding: 10px; border: 1px solid #555;">Trail</th>
       </tr>
       ${corners.map(c => `
         <tr style="background: #2a2a2a;">
-          <td style="padding: 10px; border: 1px solid #555;">${c.id}</td>
+          <td style="padding: 10px; border: 1px solid #555;">${c.number}</td>
           <td style="padding: 10px; border: 1px solid #555;">${c.type}</td>
-          <td style="padding: 10px; border: 1px solid #555;">${c.direction === 'left' ? '←' : '→'}</td>
-          <td style="padding: 10px; border: 1px solid #555;">${c.entryDistance.toFixed(0)}m - ${c.exitDistance.toFixed(0)}m</td>
-          <td style="padding: 10px; border: 1px solid #555;">${c.length.toFixed(0)}m</td>
+          <td style="padding: 10px; border: 1px solid #555;">${c.direction === 'left' ? 'L' : 'R'}</td>
+          <td style="padding: 10px; border: 1px solid #555;">${c.entryDistance}m - ${c.exitDistance}m</td>
+          <td style="padding: 10px; border: 1px solid #555;">${c.brakingZone ? c.brakingZone.brakingDistance + 'm' : '-'}</td>
+          <td style="padding: 10px; border: 1px solid #555;">${c.brakingZone ? c.brakingZone.speedLoss + ' km/h' : '-'}</td>
+          <td style="padding: 10px; border: 1px solid #555;">${c.brakingZone ? c.brakingZone.intensity : '-'}</td>
+          <td style="padding: 10px; border: 1px solid #555;">${c.brakingZone?.isTrailBraking ? 'Yes' : c.brakingZone ? 'No' : '-'}</td>
         </tr>
       `).join('')}
     </table>
