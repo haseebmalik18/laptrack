@@ -84,6 +84,7 @@ export interface SpeedComparisonConfig {
   accelThrottleThreshold: number;
   minAccelZoneLength: number;
   cornerSpeedTolerance: number;
+  cornerDbPath?: string;
 }
 
 export class SpeedComparisonAnalyzer {
@@ -96,7 +97,7 @@ export class SpeedComparisonAnalyzer {
       minAccelZoneLength: config.minAccelZoneLength ?? 50,
       cornerSpeedTolerance: config.cornerSpeedTolerance ?? 5,
     };
-    this.cornerDb = new CornerDatabase();
+    this.cornerDb = new CornerDatabase(config.cornerDbPath);
   }
 
   compareSpeed(

@@ -60,9 +60,10 @@ export class LapLoader {
         brake: parts[6],
         steering: parts[7],
         gear: parts[8],
-        gLat: parts[9],
-        gLong: parts[10],
-        yaw: parts[11] || 0, // Backwards compatibility for old laps
+        rpm: parts[9] || 0,      // RPM column (index 9)
+        gLat: parts[10] || 0,    // gLat column (index 10)
+        gLong: parts[11] || 0,   // gLong column (index 11)
+        yaw: parts[12] || 0,     // yaw column (index 12) - Backwards compatibility for old laps
         lapNum: 0,
       });
     }

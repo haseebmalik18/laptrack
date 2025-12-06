@@ -10,3 +10,6 @@ export { detectCornersYawCurvature, YawCurvatureConfig } from './yaw-curvature-d
 export { detectBrakingZones, associateBrakingZonesWithCorners, getBrakingStatistics, BrakingZone, BrakingZoneConfig, BrakingIntensity } from './braking-zone-detector';
 export { SpeedComparisonAnalyzer, SpeedComparison, CornerSpeedComparison, AccelerationZone, SpeedComparisonSummary, SpeedComparisonConfig, SpeedPoint, BrakingComparison } from './speed-comparison';
 export { SectorAnalyzer, SectorAnalysis, SectorComparison, SectorTime, SectorBoundary, SectorConfig } from './sector-analysis';
+export { GForceAnalyzer, GForceAnalysis, CornerGForceAnalysis, GForcePoint, GForceComparison, FrictionCircleData, GForceConfig } from './gforce-analysis';
+export { TrackMapLoader, TrackMap, TrackMapPoint } from './track-map-loader';
+export { TelemetryAligner, AlignmentTransform } from './telemetry-aligner';

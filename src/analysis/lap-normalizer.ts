@@ -14,7 +14,7 @@ export class LapNormalizer {
     };
   }
 
-  normalize(points: NormalizedTelemetryPoint[]): NormalizedTelemetryPoint[] {
+  normalize(points: NormalizedTelemetryPoint[], resetDistance: boolean = true): NormalizedTelemetryPoint[] {
     if (points.length < 2) {
       return points;
     }
@@ -23,6 +23,7 @@ export class LapNormalizer {
 
     const minDistance = Math.floor(sorted[0].distance);
     const maxDistance = Math.ceil(sorted[sorted.length - 1].distance);
+    const distanceOffset = resetDistance ? minDistance : 0;
 
     const normalized: NormalizedTelemetryPoint[] = [];
     let pointIndex = 0;
@@ -44,7 +45,7 @@ export class LapNormalizer {
       }
 
       const interpolated = interpolatePoint(d, point0, point1, 'distance');
-      interpolated.distance = d;
+      interpolated.distance = d - distanceOffset;
 
       normalized.push(interpolated);
     }

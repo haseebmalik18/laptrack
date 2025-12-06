@@ -55,8 +55,8 @@ export class SectorAnalyzer {
   private cornerDb: CornerDatabase;
   private sectorConfigs: Map<string, SectorBoundary[]>;
 
-  constructor() {
-    this.cornerDb = new CornerDatabase();
+  constructor(cornerDbPath?: string) {
+    this.cornerDb = new CornerDatabase(cornerDbPath);
     this.sectorConfigs = new Map();
     this.initializeDefaultConfigs();
   }
