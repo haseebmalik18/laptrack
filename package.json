@@ -1,8 +1,16 @@
 {
-  "name": "laplens-console-listener",
-  "version": "0.1.0",
-  "description": "Console UDP telemetry listener for F1 2024 - LapLens Project",
+  "name": "laptrack",
+  "version": "1.0.0",
+  "description": "Professional telemetry analysis for F1 2024 - Real-time data capture, corner-by-corner performance insights, and comprehensive lap comparison",
   "main": "dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haseebmalik18/laptrack.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haseebmalik18/laptrack/issues"
+  },
+  "homepage": "https://github.com/haseebmalik18/laptrack#readme",
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
@@ -10,8 +18,22 @@
     "test": "echo \"Tests coming soon\" && exit 0",
     "test:normalizer": "tsx src/test-normalizer.ts"
   },
-  "keywords": ["f1", "telemetry", "udp", "racing", "sim"],
-  "author": "",
+  "keywords": [
+    "f1",
+    "telemetry",
+    "udp",
+    "racing",
+    "sim",
+    "f1-2024",
+    "motorsport",
+    "analysis",
+    "lap-time",
+    "sim-racing",
+    "telemetry-analysis",
+    "corner-analysis",
+    "gforce"
+  ],
+  "author": "Haseeb Malik <haseebmalik18>",
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.2",
