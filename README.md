@@ -18,7 +18,7 @@
 
 ## 📋 About
 
-LapTrack is a comprehensive telemetry analysis platform for F1 2024, showcasing professional motorsport analysis techniques. Built to help sim racers understand and improve their lap times through detailed data-driven insights.
+LapTrack is a comprehensive telemetry analysis platform for F1 2024, showcasing professional motorsport analysis techniques. Built to help sim racers understand and improve their lap times through detailed data-driven insights. Will not run locally currently as it requires access to database with all track data, in the future once made fully public will be able to run locally.
 
 ---
 
