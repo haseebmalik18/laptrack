@@ -16,9 +16,11 @@ export class UDPListener {
   private lastX: number = 0;
   private lastY: number = 0;
   private totalDistance: number = 0;
-  private currentLapNum: number = 0;
   private trackName: string = "Unknown";
+  private trackId: number = -1;
   private carName: string = "Unknown";
+  private playerCarIndex: number = -1;
+  private playerIndexConfirmed: boolean = false;
 
   constructor(port: number = 20777) {
     this.port = port;
@@ -47,11 +49,32 @@ export class UDPListener {
     const header = this.parser.parseHeader(buffer);
 
     switch (header.packetId) {
+      case PacketType.PARTICIPANTS:
+        const participants = this.parser.parseParticipantsData(buffer);
+        if (participants && !this.playerIndexConfirmed) {
+          this.playerCarIndex = header.playerCarIndex;
+          const player = participants.participants[this.playerCarIndex];
+
+          console.log(`Player: ${player.name} (Car ${this.playerCarIndex})`);
+
+          this.playerIndexConfirmed = true;
+          this.carName = getTeamName(player.teamId);
+          this.recorder.setCarName(this.carName);
+        }
+        break;
+    }
+
+    // Don't process telemetry until we've confirmed the player index
+    if (this.playerCarIndex === -1) {
+      return;
+    }
+
+    switch (header.packetId) {
       case PacketType.CAR_TELEMETRY:
         const telemetry = this.parser.parseCarTelemetry(buffer);
         if (telemetry) {
           this.latestTelemetry =
-            telemetry.carTelemetryData[header.playerCarIndex];
+            telemetry.carTelemetryData[this.playerCarIndex];
           this.mergeAndRecord(header);
         }
         break;
@@ -59,7 +82,7 @@ export class UDPListener {
       case PacketType.LAP_DATA:
         const lapData = this.parser.parseLapData(buffer);
         if (lapData) {
-          this.latestLapData = lapData.lapData[header.playerCarIndex];
+          this.latestLapData = lapData.lapData[this.playerCarIndex];
           this.mergeAndRecord(header);
         }
         break;
@@ -67,25 +90,19 @@ export class UDPListener {
       case PacketType.MOTION:
         const motion = this.parser.parseMotionData(buffer);
         if (motion) {
-          this.latestMotion = motion.carMotionData[header.playerCarIndex];
+          this.latestMotion = motion.carMotionData[this.playerCarIndex];
           this.mergeAndRecord(header);
         }
         break;
 
       case PacketType.SESSION:
         const session = this.parser.parseSessionData(buffer);
-        if (session) {
-          this.trackName = getTrackName(session.sessionData.trackId);
+        if (session && this.trackId === -1) {
+          this.trackId = session.sessionData.trackId;
+          this.trackName = getTrackName(this.trackId);
           this.recorder.setTrackName(this.trackName);
-        }
-        break;
-
-      case PacketType.PARTICIPANTS:
-        const participants = this.parser.parseParticipantsData(buffer);
-        if (participants) {
-          const playerData = participants.participants[header.playerCarIndex];
-          this.carName = getTeamName(playerData.teamId);
-          this.recorder.setCarName(this.carName);
+          this.recorder.setTrackId(this.trackId);
+          console.log(`Track: ${this.trackName}`);
         }
         break;
     }
@@ -96,16 +113,10 @@ export class UDPListener {
       return;
     }
 
-    if (this.latestLapData.currentLapNum !== this.currentLapNum && this.currentLapNum !== 0) {
-      this.totalDistance = 0;
-      this.lastX = 0;
-      this.lastY = 0;
-    }
-    this.currentLapNum = this.latestLapData.currentLapNum;
-
     const currentX = this.latestMotion.worldPositionX;
     const currentY = this.latestMotion.worldPositionZ;
 
+    // Calculate total distance using X/Y position changes
     if (this.lastX !== 0 || this.lastY !== 0) {
       const dx = currentX - this.lastX;
       const dy = currentY - this.lastY;
@@ -126,7 +137,8 @@ export class UDPListener {
       brake: this.latestTelemetry.brake,
       steering: this.latestTelemetry.steer,
       gear: this.latestTelemetry.gear,
-      lapNum: this.latestLapData.currentLapNum,
+      rpm: this.latestTelemetry.engineRPM,
+      lapNum: 0,
       gLat: this.latestMotion.gForceLateral,
       gLong: this.latestMotion.gForceLongitudinal,
       yaw: this.latestMotion.yaw,

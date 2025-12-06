@@ -65,7 +65,9 @@ export interface LapData {
   sector2TimeInMS: number;
   sector2TimeMinutes: number;
   deltaToCarInFrontInMS: number;
+  deltaToCarInFrontMinutes: number;  // NEW in F1 2024
   deltaToRaceLeaderInMS: number;
+  deltaToRaceLeaderMinutes: number;  // NEW in F1 2024
   lapDistance: number;
   totalDistance: number;
   safetyCarDelta: number;
@@ -209,6 +211,7 @@ export interface NormalizedTelemetryPoint {
   brake: number;
   steering: number;
   gear: number;
+  rpm: number;
   lapNum: number;
   gLat: number;
   gLong: number;
