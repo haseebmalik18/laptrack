@@ -20,13 +20,10 @@ _Real-time data capture • Corner-by-corner insights_
 
 LapTrack is a comprehensive telemetry analysis platform for F1 2024, showcasing professional motorsport analysis techniques. Built to help sim racers understand and improve their lap times through detailed data-driven insights.
 
-### Demo
 
-<div align="center">
-  <video src="demo_video.mp4" controls width="800">
-    Your browser does not support the video tag.
-  </video>
-</div>
+https://github.com/user-attachments/assets/cf7fa27f-7a03-4138-bb43-81adb6f80d96
+
+
 
 ---
 
