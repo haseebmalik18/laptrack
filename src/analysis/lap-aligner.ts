@@ -1,3 +1,9 @@
+/**
+ * Lap Aligner - Aligns two laps by distance for comparison
+ *
+ * Finds overlapping distance range between laps and trims to matching segments.
+ */
+
 import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
 
 export interface AlignedLaps {
@@ -9,6 +15,7 @@ export interface AlignedLaps {
 }
 
 export class LapAligner {
+  // Align laps by finding overlapping distance range
   alignLaps(
     lapA: NormalizedTelemetryPoint[],
     lapB: NormalizedTelemetryPoint[]
@@ -46,6 +53,7 @@ export class LapAligner {
     };
   }
 
+  // Trim laps to same point count (alternative to distance-based alignment)
   trimToSameLength(
     lapA: NormalizedTelemetryPoint[],
     lapB: NormalizedTelemetryPoint[]

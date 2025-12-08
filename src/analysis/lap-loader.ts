@@ -1,3 +1,9 @@
+/**
+ * Lap Loader - Loads saved lap data from CSV/JSON files
+ *
+ * Reads telemetry from ./laps directory and parses into NormalizedTelemetryPoint arrays.
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
@@ -16,6 +22,7 @@ export class LapLoader {
     this.lapsDir = lapsDir;
   }
 
+  // List all available laps from JSON metadata
   listAvailableLaps(): LapInfo[] {
     if (!fs.existsSync(this.lapsDir)) {
       return [];
@@ -38,6 +45,7 @@ export class LapLoader {
     return files;
   }
 
+  // Load telemetry from CSV file (parses all columns including yaw)
   loadLap(csvPath: string): NormalizedTelemetryPoint[] {
     const content = fs.readFileSync(csvPath, 'utf-8');
     const lines = content.split('\n').slice(1);
@@ -71,6 +79,7 @@ export class LapLoader {
     return points;
   }
 
+  // Load lap by lap number (looks up CSV path from metadata)
   loadLapByNumber(lapNumber: number): NormalizedTelemetryPoint[] | null {
     const laps = this.listAvailableLaps();
     const lap = laps.find(l => l.lapNumber === lapNumber);

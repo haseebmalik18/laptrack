@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { chartColors, chartMargins, axisConfig, tooltipConfig } from "../lib/chartConfig";
 
 interface SpeedTracePanelProps {
   currentLapData: any;
@@ -59,32 +60,22 @@ export function SpeedTracePanel({ currentLapData, referenceLapData, currentIndex
 
       <div className="flex-1 p-4">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+          <LineChart data={chartData} margin={chartMargins.standard}>
+            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
             <XAxis
               dataKey="distance"
-              stroke="#52525b"
-              tick={{ fill: '#71717a', fontSize: 10 }}
-              tickLine={false}
-              axisLine={{ stroke: '#3f3f46' }}
-              label={{ value: 'Distance (m)', position: 'insideBottom', offset: -15, fill: '#71717a', fontSize: 10 }}
+              {...axisConfig}
+              label={{ value: 'Distance (m)', position: 'insideBottom', offset: -15, fill: chartColors.tick, fontSize: 10 }}
             />
             <YAxis
-              stroke="#52525b"
-              tick={{ fill: '#71717a', fontSize: 10 }}
-              tickLine={false}
-              axisLine={{ stroke: '#3f3f46' }}
-              label={{ value: 'km/h', angle: -90, position: 'insideLeft', fill: '#71717a', fontSize: 10 }}
+              {...axisConfig}
+              label={{ value: 'km/h', angle: -90, position: 'insideLeft', fill: chartColors.tick, fontSize: 10 }}
             />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '4px' }}
-              labelStyle={{ color: '#a1a1aa', fontSize: 11 }}
-              itemStyle={{ fontSize: 11 }}
-            />
+            <Tooltip {...tooltipConfig} />
             <Line
               type="monotone"
               dataKey="currentSpeed"
-              stroke="#facc15"
+              stroke={chartColors.current}
               name="Current"
               dot={false}
               strokeWidth={2}
@@ -94,7 +85,7 @@ export function SpeedTracePanel({ currentLapData, referenceLapData, currentIndex
               <Line
                 type="monotone"
                 dataKey="referenceSpeed"
-                stroke="#22d3ee"
+                stroke={chartColors.reference}
                 name="Reference"
                 dot={false}
                 strokeWidth={1.5}
@@ -102,19 +93,8 @@ export function SpeedTracePanel({ currentLapData, referenceLapData, currentIndex
                 isAnimationActive={false}
               />
             )}
-            {/* Current position marker */}
-            <Line
-              type="monotone"
-              dataKey={() => null}
-              stroke="#ef4444"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
           </LineChart>
         </ResponsiveContainer>
-
-        {/* Current speed display */}
         <div className="mt-4 pt-4 border-t border-zinc-800">
           <div className="text-xs text-zinc-500 mb-2">Current Speed</div>
           <div className="text-3xl font-bold font-mono text-yellow-400">

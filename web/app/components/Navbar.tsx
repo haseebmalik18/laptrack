@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Main navigation bar with active route highlighting
 export function Navbar() {
   const pathname = usePathname();
 

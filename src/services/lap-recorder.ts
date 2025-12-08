@@ -1,13 +1,21 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
+/**
+ * Lap Recorder - Accumulates telemetry points and saves completed laps to CSV/JSON
+ *
+ * Detects lap completion via distance reset (50% drop), validates minimum point count (>100),
+ * and auto-saves to ./laps directory. Does NOT normalize data - stores raw points.
+ */
+
+import * as fs from "fs";
+import * as path from "path";
+import { NormalizedTelemetryPoint } from "../types/f1-2024-packets";
 
 export interface LapMetadata {
   lapNumber: number;
   trackName: string;
+  trackId: number;          // F1 2024 track ID
   carName: string;
-  timestamp: string;
-  lapTimeMs: number;
+  timestamp: string;        // ISO timestamp when saved
+  lapTimeMs: number;        // Calculated from telemetry
   isValid: boolean;
   pointCount: number;
 }
@@ -15,15 +23,14 @@ export interface LapMetadata {
 export class LapRecorder {
   private currentLapData: NormalizedTelemetryPoint[] = [];
   private currentLapNumber: number = 0;
-  private baseLapNumber: number | null = null;
   private outputDir: string;
-  private lapCounter: number = 0;
+  private lapCounter: number = 0;   // Sequential lap counter
   private trackName: string = "Unknown";
-  private carName: string = "Unknown";
   private trackId: number = -1;
-  private lastDistance: number = 0;
+  private carName: string = "Unknown";
+  private lastDistance: number = 0; // For lap completion detection
 
-  constructor(outputDir: string = './laps') {
+  constructor(outputDir: string = "./laps") {
     this.outputDir = outputDir;
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
@@ -31,10 +38,14 @@ export class LapRecorder {
   }
 
   addTelemetryPoint(point: NormalizedTelemetryPoint) {
-    // Detect lap completion using distance reset
+    // Detect lap completion via distance reset (50% drop)
     let lapComplete = false;
     if (this.lastDistance > 0 && point.distance < this.lastDistance * 0.5) {
-      console.log(`Lap complete detected! Distance reset: ${this.lastDistance.toFixed(1)}m → ${point.distance.toFixed(1)}m`);
+      console.log(
+        `Lap complete detected! Distance reset: ${this.lastDistance.toFixed(
+          1
+        )}m → ${point.distance.toFixed(1)}m`
+      );
       lapComplete = this.currentLapData.length > 100;
     }
 
@@ -47,34 +58,41 @@ export class LapRecorder {
       this.currentLapData = [];
     }
 
-    // Add point to current lap
     this.currentLapData.push(point);
   }
 
   private saveLap() {
     if (this.currentLapData.length === 0) return;
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const baseName = `lap_${this.lapCounter}_${timestamp}`;
 
     const csvPath = path.join(this.outputDir, `${baseName}.csv`);
     const jsonPath = path.join(this.outputDir, `${baseName}.json`);
 
-    const csvHeader = 'time,distance,x,y,speed,throttle,brake,steering,gear,rpm,gLat,gLong,yaw\n';
-    const csvRows = this.currentLapData.map(p =>
-      `${p.time},${p.distance},${p.x},${p.y},${p.speed},${p.throttle},${p.brake},${p.steering},${p.gear},${p.rpm},${p.gLat},${p.gLong},${p.yaw}`
-    ).join('\n');
+    // Write CSV telemetry data
+    const csvHeader =
+      "time,distance,x,y,speed,throttle,brake,steering,gear,rpm,gLat,gLong,yaw\n";
+    const csvRows = this.currentLapData
+      .map(
+        (p) =>
+          `${p.time},${p.distance},${p.x},${p.y},${p.speed},${p.throttle},${p.brake},${p.steering},${p.gear},${p.rpm},${p.gLat},${p.gLong},${p.yaw}`
+      )
+      .join("\n");
 
     fs.writeFileSync(csvPath, csvHeader + csvRows);
 
-    // Calculate actual lap time (end time - start time)
+    // Calculate lap time from telemetry
     const lapStartTime = this.currentLapData[0]?.time || 0;
-    const lapEndTime = this.currentLapData[this.currentLapData.length - 1]?.time || 0;
+    const lapEndTime =
+      this.currentLapData[this.currentLapData.length - 1]?.time || 0;
     const actualLapTime = lapEndTime - lapStartTime;
 
+    // Write JSON metadata
     const metadata: LapMetadata = {
       lapNumber: this.lapCounter,
       trackName: this.trackName,
+      trackId: this.trackId,
       carName: this.carName,
       timestamp: new Date().toISOString(),
       lapTimeMs: actualLapTime,
@@ -84,19 +102,21 @@ export class LapRecorder {
 
     fs.writeFileSync(jsonPath, JSON.stringify(metadata, null, 2));
 
-    console.log(`Lap ${this.lapCounter} saved: ${this.currentLapData.length} points`);
+    console.log(
+      `Lap ${this.lapCounter} saved: ${this.currentLapData.length} points`
+    );
   }
 
   setTrackName(trackName: string) {
     this.trackName = trackName;
   }
 
-  setCarName(carName: string) {
-    this.carName = carName;
-  }
-
   setTrackId(trackId: number) {
     this.trackId = trackId;
+  }
+
+  setCarName(carName: string) {
+    this.carName = carName;
   }
 
   getCurrentLapNumber(): number {

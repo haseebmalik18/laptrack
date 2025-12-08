@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Navbar } from "../components/Navbar";
 
-// Lazy load comparison components
+// Lazy load comparison components for better performance
 const SpeedComparisonView = dynamic(() => import("./components/SpeedComparisonView").then(mod => ({ default: mod.SpeedComparisonView })), { ssr: false });
 const SectorComparisonView = dynamic(() => import("./components/SectorComparisonView").then(mod => ({ default: mod.SectorComparisonView })), { ssr: false });
 const GForceComparisonView = dynamic(() => import("./components/GForceComparisonView").then(mod => ({ default: mod.GForceComparisonView })), { ssr: false });
 
+// Compare page - side-by-side lap comparison with speed, sector, and g-force analysis
 export default function ComparePage() {
   const [availableLaps, setAvailableLaps] = useState<any[]>([]);
   const [lapA, setLapA] = useState<number | null>(null);
@@ -17,6 +18,7 @@ export default function ComparePage() {
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  // Load available laps and auto-select first two
   useEffect(() => {
     fetch("/api/laps")
       .then((res) => res.json())
@@ -30,6 +32,7 @@ export default function ComparePage() {
       .catch((err) => console.error("Failed to load laps:", err));
   }, []);
 
+  // Fetch comparison data when laps or analysis type changes
   useEffect(() => {
     if (lapA === null || lapB === null) return;
 

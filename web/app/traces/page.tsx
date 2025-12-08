@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "../components/Navbar";
 import dynamic from "next/dynamic";
+import { normalizeTelemetry, extractTrackSimpleName, selectReferenceLap } from "../lib/lapUtils";
 
+// Lazy load heavy chart components for better performance
 const DataTraces = dynamic(() => import("./components/DataTraces").then(mod => ({ default: mod.DataTraces })), { ssr: false });
 const MiniTrackMap = dynamic(() => import("./components/MiniTrackMap").then(mod => ({ default: mod.MiniTrackMap })), { ssr: false });
 
@@ -18,6 +20,7 @@ export default function TracesPage() {
   const [lapDataLoading, setLapDataLoading] = useState(false);
   const [hoveredDistance, setHoveredDistance] = useState<number | null>(null);
 
+  // Load available laps and auto-select reference lap
   useEffect(() => {
     setLapsLoading(true);
     fetch("/api/laps")
@@ -27,21 +30,10 @@ export default function TracesPage() {
         if (data.laps.length > 0) {
           setSelectedLap(data.laps[0].lapNumber);
 
-          // Auto-select fastest lap as reference (if we have multiple laps)
+          // Auto-select fastest lap as reference
           if (data.laps.length >= 2) {
-            const fastestLap = [...data.laps].sort((a, b) => {
-              const parseTime = (timeStr: string) => {
-                const [mins, secs] = timeStr.split(':');
-                return parseFloat(mins) * 60 + parseFloat(secs);
-              };
-              return parseTime(a.lapTime) - parseTime(b.lapTime);
-            })[0];
-
-            if (fastestLap.lapNumber !== data.laps[0].lapNumber) {
-              setReferenceLap(fastestLap.lapNumber);
-            } else if (data.laps.length > 1) {
-              setReferenceLap(data.laps[1].lapNumber);
-            }
+            const refLapNumber = selectReferenceLap(data.laps, data.laps[0].lapNumber);
+            if (refLapNumber) setReferenceLap(refLapNumber);
           }
         }
         setLapsLoading(false);
@@ -52,6 +44,7 @@ export default function TracesPage() {
       });
   }, []);
 
+  // Load selected lap telemetry data
   useEffect(() => {
     if (selectedLap === null) return;
 
@@ -59,15 +52,8 @@ export default function TracesPage() {
     fetch(`/api/laps/${selectedLap}`)
       .then((res) => res.json())
       .then((data) => {
-        // Normalize time and distance to start from 0
-        if (data.telemetry && data.telemetry.length > 0) {
-          const startTime = data.telemetry[0].time;
-          const startDistance = data.telemetry[0].distance;
-          data.telemetry = data.telemetry.map((point: any) => ({
-            ...point,
-            time: point.time - startTime,
-            distance: point.distance - startDistance
-          }));
+        if (data.telemetry) {
+          data.telemetry = normalizeTelemetry(data.telemetry);
         }
         setLapData(data);
         setLapDataLoading(false);
@@ -78,6 +64,7 @@ export default function TracesPage() {
       });
   }, [selectedLap]);
 
+  // Load reference lap telemetry data
   useEffect(() => {
     if (referenceLap === null) {
       setReferenceLapData(null);
@@ -87,27 +74,19 @@ export default function TracesPage() {
     fetch(`/api/laps/${referenceLap}`)
       .then((res) => res.json())
       .then((data) => {
-        // Normalize time and distance to start from 0
-        if (data.telemetry && data.telemetry.length > 0) {
-          const startTime = data.telemetry[0].time;
-          const startDistance = data.telemetry[0].distance;
-          data.telemetry = data.telemetry.map((point: any) => ({
-            ...point,
-            time: point.time - startTime,
-            distance: point.distance - startDistance
-          }));
+        if (data.telemetry) {
+          data.telemetry = normalizeTelemetry(data.telemetry);
         }
         setReferenceLapData(data);
       })
       .catch((err) => console.error("Failed to load reference lap:", err));
   }, [referenceLap]);
 
+  // Load corner database for current track
   useEffect(() => {
     if (!lapData?.metadata?.trackName) return;
 
-    const trackName = lapData.metadata.trackName;
-    const match = trackName.match(/\(([^)]+)\)/);
-    const simpleName = match ? match[1].toLowerCase() : trackName.toLowerCase();
+    const simpleName = extractTrackSimpleName(lapData.metadata.trackName);
 
     fetch(`/api/corners/${simpleName}`)
       .then((res) => res.json())

@@ -1,8 +1,15 @@
+/**
+ * Lap Normalizer - Converts variable-spaced telemetry to even distance intervals
+ *
+ * Raw telemetry arrives at 60Hz (time-based) creating variable spacing.
+ * Normalization creates consistent samples (default: 1 sample per meter) for accurate analysis.
+ */
+
 import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
 import { interpolatePoint } from './interpolation';
 
 export interface NormalizerOptions {
-  sampleRate: number;
+  sampleRate: number;          // Distance between samples in meters
 }
 
 export class LapNormalizer {
@@ -14,11 +21,16 @@ export class LapNormalizer {
     };
   }
 
+  /**
+   * Normalize telemetry to consistent distance-based sampling
+   * Sorts points by distance, then interpolates at even intervals
+   */
   normalize(points: NormalizedTelemetryPoint[], resetDistance: boolean = true): NormalizedTelemetryPoint[] {
     if (points.length < 2) {
       return points;
     }
 
+    // Sort by distance (handles out-of-order UDP packets)
     const sorted = [...points].sort((a, b) => a.distance - b.distance);
 
     const minDistance = Math.floor(sorted[0].distance);
@@ -28,7 +40,9 @@ export class LapNormalizer {
     const normalized: NormalizedTelemetryPoint[] = [];
     let pointIndex = 0;
 
+    // Create evenly-spaced samples by interpolating
     for (let d = minDistance; d <= maxDistance; d += this.options.sampleRate) {
+      // Find surrounding points
       while (pointIndex < sorted.length - 1 && sorted[pointIndex + 1].distance < d) {
         pointIndex++;
       }
@@ -53,6 +67,9 @@ export class LapNormalizer {
     return normalized;
   }
 
+  /**
+   * Get track length from telemetry
+   */
   getTrackLength(points: NormalizedTelemetryPoint[]): number {
     if (points.length === 0) return 0;
     const sorted = [...points].sort((a, b) => a.distance - b.distance);

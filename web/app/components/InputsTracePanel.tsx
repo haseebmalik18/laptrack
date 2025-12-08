@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { chartColors, chartMargins, axisConfig, tooltipConfig } from "../lib/chartConfig";
 
 interface InputsTracePanelProps {
   currentLapData: any;
@@ -52,36 +53,19 @@ export function InputsTracePanel({ currentLapData, referenceLapData, currentInde
       </div>
 
       <div className="flex-1 p-4 space-y-4">
-        {/* Throttle Chart */}
         <div>
           <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Throttle</div>
           <ResponsiveContainer width="100%" height={120}>
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis
-                dataKey="distance"
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-              />
-              <YAxis
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-                domain={[0, 100]}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '4px' }}
-                labelStyle={{ color: '#a1a1aa', fontSize: 10 }}
-                itemStyle={{ fontSize: 10 }}
-              />
+            <AreaChart data={chartData} margin={chartMargins.compact}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+              <XAxis dataKey="distance" {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} />
+              <YAxis {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} domain={[0, 100]} />
+              <Tooltip {...tooltipConfig} labelStyle={{ color: '#a1a1aa', fontSize: 10 }} itemStyle={{ fontSize: 10 }} />
               <Area
                 type="monotone"
                 dataKey="throttle"
-                stroke="#22c55e"
-                fill="#22c55e"
+                stroke={chartColors.throttle}
+                fill={chartColors.throttle}
                 fillOpacity={0.3}
                 isAnimationActive={false}
               />
@@ -89,44 +73,25 @@ export function InputsTracePanel({ currentLapData, referenceLapData, currentInde
           </ResponsiveContainer>
         </div>
 
-        {/* Brake Chart */}
         <div>
           <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Brake</div>
           <ResponsiveContainer width="100%" height={120}>
-            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis
-                dataKey="distance"
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-              />
-              <YAxis
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-                domain={[0, 100]}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '4px' }}
-                labelStyle={{ color: '#a1a1aa', fontSize: 10 }}
-                itemStyle={{ fontSize: 10 }}
-              />
+            <AreaChart data={chartData} margin={chartMargins.compact}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+              <XAxis dataKey="distance" {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} />
+              <YAxis {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} domain={[0, 100]} />
+              <Tooltip {...tooltipConfig} labelStyle={{ color: '#a1a1aa', fontSize: 10 }} itemStyle={{ fontSize: 10 }} />
               <Area
                 type="monotone"
                 dataKey="brake"
-                stroke="#ef4444"
-                fill="#ef4444"
+                stroke={chartColors.brake}
+                fill={chartColors.brake}
                 fillOpacity={0.3}
                 isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Current Values */}
         <div className="pt-4 border-t border-zinc-800 space-y-3">
           <div>
             <div className="text-xs text-zinc-500 mb-1">Throttle</div>

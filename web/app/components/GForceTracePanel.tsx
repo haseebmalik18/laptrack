@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { chartColors, chartMargins, axisConfig, tooltipConfig } from "../lib/chartConfig";
 
 interface GForceTracePanelProps {
   currentLapData: any;
@@ -55,34 +56,18 @@ export function GForceTracePanel({ currentLapData, referenceLapData, currentInde
       </div>
 
       <div className="flex-1 p-4 space-y-4">
-        {/* Lateral G Chart */}
         <div>
           <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Lateral G (Cornering)</div>
           <ResponsiveContainer width="100%" height={100}>
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis
-                dataKey="distance"
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-              />
-              <YAxis
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '4px' }}
-                labelStyle={{ color: '#a1a1aa', fontSize: 10 }}
-                itemStyle={{ fontSize: 10 }}
-              />
+            <LineChart data={chartData} margin={chartMargins.compact}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+              <XAxis dataKey="distance" {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} />
+              <YAxis {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} />
+              <Tooltip {...tooltipConfig} labelStyle={{ color: '#a1a1aa', fontSize: 10 }} itemStyle={{ fontSize: 10 }} />
               <Line
                 type="monotone"
                 dataKey="gLat"
-                stroke="#a855f7"
+                stroke={chartColors.gLat}
                 strokeWidth={2}
                 dot={false}
                 isAnimationActive={false}
@@ -91,34 +76,18 @@ export function GForceTracePanel({ currentLapData, referenceLapData, currentInde
           </ResponsiveContainer>
         </div>
 
-        {/* Longitudinal G Chart */}
         <div>
           <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Longitudinal G (Braking/Accel)</div>
           <ResponsiveContainer width="100%" height={100}>
-            <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis
-                dataKey="distance"
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-              />
-              <YAxis
-                stroke="#52525b"
-                tick={{ fill: '#71717a', fontSize: 9 }}
-                tickLine={false}
-                axisLine={{ stroke: '#3f3f46' }}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '4px' }}
-                labelStyle={{ color: '#a1a1aa', fontSize: 10 }}
-                itemStyle={{ fontSize: 10 }}
-              />
+            <LineChart data={chartData} margin={chartMargins.compact}>
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+              <XAxis dataKey="distance" {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} />
+              <YAxis {...axisConfig} tick={{ fill: chartColors.tick, fontSize: 9 }} />
+              <Tooltip {...tooltipConfig} labelStyle={{ color: '#a1a1aa', fontSize: 10 }} itemStyle={{ fontSize: 10 }} />
               <Line
                 type="monotone"
                 dataKey="gLong"
-                stroke="#f59e0b"
+                stroke={chartColors.gLong}
                 strokeWidth={2}
                 dot={false}
                 isAnimationActive={false}
@@ -126,8 +95,6 @@ export function GForceTracePanel({ currentLapData, referenceLapData, currentInde
             </LineChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Current G-Force Values */}
         <div className="pt-4 border-t border-zinc-800 space-y-3">
           <div>
             <div className="text-xs text-zinc-500 mb-1">Lateral G</div>

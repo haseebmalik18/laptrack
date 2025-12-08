@@ -8,6 +8,7 @@ import { LapLoader } from '../../../../../src/analysis/lap-loader';
 import { LapAligner } from '../../../../../src/analysis/lap-aligner';
 import { LapNormalizer } from '../../../../../src/analysis/lap-normalizer';
 
+// GET /api/analysis/compare - Performs lap comparison analysis (speed, sector, or g-force)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
 
     const aligned = aligner.alignLaps(normalizedA, normalizedB);
 
-    // Run analysis based on type
+    // Run appropriate analysis based on type (speed, sector, or gforce)
     let comparisonData;
     if (type === 'speed') {
       const analyzer = new SpeedComparisonAnalyzer({ cornerDbPath: cornersDir });
@@ -92,8 +93,7 @@ export async function GET(request: Request) {
   }
 }
 
-// Transform functions to match frontend data format
-
+// Transform analysis results to frontend format
 function transformSpeedComparison(analysis: any) {
   return {
     cornerComparison: analysis.corners.map((corner: any) => ({

@@ -1,17 +1,23 @@
+/**
+ * Track Map Loader - Loads track boundary maps from CSV files
+ *
+ * CSV format: x, y, widthRight, widthLeft (centerline + track edge distances)
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 
 export interface TrackMapPoint {
-  x: number;
-  y: number;
-  widthRight: number;
-  widthLeft: number;
+  x: number;              // World X coordinate
+  y: number;              // World Y coordinate
+  widthRight: number;     // Distance to right track edge
+  widthLeft: number;      // Distance to left track edge
 }
 
 export interface TrackMap {
   name: string;
   points: TrackMapPoint[];
-  bounds: {
+  bounds: {               // Bounding box for canvas scaling
     minX: number;
     maxX: number;
     minY: number;
@@ -26,6 +32,10 @@ export class TrackMapLoader {
     this.mapsDir = mapsDir;
   }
 
+  /**
+   * Load track map from CSV file
+   * Returns null if file not found
+   */
   loadTrackMap(trackName: string): TrackMap | null {
     const csvPath = path.join(this.mapsDir, `${trackName.toLowerCase()}.csv`);
 
@@ -44,6 +54,7 @@ export class TrackMapLoader {
     for (const line of lines) {
       if (!line.trim()) continue;
 
+      // Parse CSV: x, y, widthRight, widthLeft
       const parts = line.split(',').map(p => parseFloat(p));
       if (parts.length < 4) continue;
 
@@ -56,6 +67,7 @@ export class TrackMapLoader {
 
       points.push(point);
 
+      // Calculate bounding box
       minX = Math.min(minX, point.x);
       maxX = Math.max(maxX, point.x);
       minY = Math.min(minY, point.y);

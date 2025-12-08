@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
-import { LapLoader } from '../../../../../src/analysis/lap-loader';
-import { LapNormalizer } from '../../../../../src/analysis/lap-normalizer';
-import { LapAligner } from '../../../../../src/analysis/lap-aligner';
-import { SectorAnalyzer } from '../../../../../src/analysis/sector-analysis';
+import { LapLoader } from '@analysis/lap-loader';
+import { LapNormalizer } from '@analysis/lap-normalizer';
+import { LapAligner } from '@analysis/lap-aligner';
+import { SectorAnalyzer } from '@analysis/sector-analysis';
 
 export async function GET(request: Request) {
   try {

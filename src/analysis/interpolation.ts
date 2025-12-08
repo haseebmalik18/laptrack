@@ -1,7 +1,19 @@
+/**
+ * Interpolation - Linear interpolation utilities for telemetry data
+ */
+
+/**
+ * Linear interpolation between two values
+ * Formula: a + (b - a) × t
+ */
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/**
+ * Interpolate Y value given X and two reference points
+ * Formula: y = y0 + (y1 - y0) × ((x - x0) / (x1 - x0))
+ */
 export function interpolateValue(
   x: number,
   x0: number,
@@ -18,6 +30,10 @@ export interface InterpolatePoint {
   [key: string]: number;
 }
 
+/**
+ * Interpolate all numeric properties of a point
+ * Used by LapNormalizer to create evenly-spaced samples
+ */
 export function interpolatePoint<T extends InterpolatePoint>(
   distance: number,
   point0: T,

@@ -9,3 +9,8 @@ laps/
 !package.json
 !tsconfig.json
 claude.md
+*.html
+INTERVIEW_GUIDE.md
+corners/
+track-maps/
+boundaries/

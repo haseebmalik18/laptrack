@@ -1,18 +1,25 @@
+/**
+ * Speed Comparison - Corner-by-corner speed and acceleration analysis
+ *
+ * Compares two laps at key corner points (entry/apex/exit) and acceleration zones
+ * Provides time deltas, speed differences, and braking analysis
+ */
+
 import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
 import { AlignedLaps } from './lap-aligner';
 import { CornerDatabase, CornerDatabaseEntry } from './corner-database';
 
 export interface SpeedPoint {
-  lapA: number;
-  lapB: number;
-  delta: number;
+  lapA: number;           // Value from lap A
+  lapB: number;           // Value from lap B
+  delta: number;          // Difference (lapA - lapB)
 }
 
 export interface BrakingComparison {
-  brakingPoint: SpeedPoint;
-  peakBrake: SpeedPoint;
+  brakingPoint: SpeedPoint;          // Speed at brake application
+  peakBrake: SpeedPoint;             // Peak brake pressure
   brakingDistance: { lapA: number; lapB: number; delta: number };
-  avgBrakePressure: SpeedPoint;
+  avgBrakePressure: SpeedPoint;      // Average brake pressure through zone
 }
 
 export interface CornerSpeedComparison {
@@ -25,11 +32,11 @@ export interface CornerSpeedComparison {
   entrySpeed: SpeedPoint;
   apexSpeed: SpeedPoint;
   exitSpeed: SpeedPoint;
-  minSpeed: SpeedPoint;
+  minSpeed: SpeedPoint;              // Minimum speed in corner
 
   entryTime: { lapA: number; lapB: number };
   exitTime: { lapA: number; lapB: number };
-  timeDelta: number;
+  timeDelta: number;                 // Time gained/lost in corner
 
   cornerLength: number;
   avgThrottle: SpeedPoint;
@@ -46,26 +53,26 @@ export interface AccelerationZone {
   startSpeed: SpeedPoint;
   endSpeed: SpeedPoint;
 
-  avgAcceleration: SpeedPoint;
+  avgAcceleration: SpeedPoint;       // m/s²
   avgThrottle: SpeedPoint;
 
   duration: { lapA: number; lapB: number };
-  timeDelta: number;
+  timeDelta: number;                 // Time gained/lost in zone
 
-  precedingCorner?: number;
-  followingCorner?: number;
+  precedingCorner?: number;          // Corner before this zone
+  followingCorner?: number;          // Corner after this zone
 }
 
 export interface SpeedComparisonSummary {
-  totalTimeDelta: number;
+  totalTimeDelta: number;            // Total lap time difference
   totalDistance: number;
 
-  timeGainedInCorners: number;
-  timeGainedInAccelZones: number;
+  timeGainedInCorners: number;       // Sum of corner time deltas
+  timeGainedInAccelZones: number;    // Sum of accel zone time deltas
 
-  avgSpeedDelta: number;
-  maxSpeedDelta: number;
-  maxSpeedDeltaDistance: number;
+  avgSpeedDelta: number;             // Average speed difference
+  maxSpeedDelta: number;             // Largest speed difference
+  maxSpeedDeltaDistance: number;     // Where max delta occurred
 
   fastestCornerGain: { cornerNumber: number; timeDelta: number };
   slowestCornerLoss: { cornerNumber: number; timeDelta: number };
@@ -81,9 +88,9 @@ export interface SpeedComparison {
 }
 
 export interface SpeedComparisonConfig {
-  accelThrottleThreshold: number;
-  minAccelZoneLength: number;
-  cornerSpeedTolerance: number;
+  accelThrottleThreshold: number;    // Min throttle % to count as acceleration zone
+  minAccelZoneLength: number;        // Min zone length in meters
+  cornerSpeedTolerance: number;      // Distance tolerance for finding points
   cornerDbPath?: string;
 }
 
@@ -100,6 +107,10 @@ export class SpeedComparisonAnalyzer {
     this.cornerDb = new CornerDatabase(config.cornerDbPath);
   }
 
+  /**
+   * Compare speed between two laps
+   * Returns corner-by-corner analysis, acceleration zones, and summary
+   */
   compareSpeed(
     aligned: AlignedLaps,
     trackName: string,
@@ -138,6 +149,9 @@ export class SpeedComparisonAnalyzer {
     return comparisons;
   }
 
+  /**
+   * Analyze single corner comparing speeds at entry/apex/exit
+   */
   private analyzeCorner(
     lapA: NormalizedTelemetryPoint[],
     lapB: NormalizedTelemetryPoint[],
@@ -145,6 +159,7 @@ export class SpeedComparisonAnalyzer {
   ): CornerSpeedComparison {
     const tolerance = this.config.cornerSpeedTolerance;
 
+    // Find key corner points (entry, apex, exit)
     const entryA = this.findPointAtDistance(lapA, corner.entryDistance, tolerance);
     const entryB = this.findPointAtDistance(lapB, corner.entryDistance, tolerance);
 
@@ -154,6 +169,7 @@ export class SpeedComparisonAnalyzer {
     const exitA = this.findPointAtDistance(lapA, corner.exitDistance, tolerance);
     const exitB = this.findPointAtDistance(lapB, corner.exitDistance, tolerance);
 
+    // Get all points within corner
     const cornerPointsA = this.getPointsInRange(lapA, corner.entryDistance, corner.exitDistance);
     const cornerPointsB = this.getPointsInRange(lapB, corner.entryDistance, corner.exitDistance);
 
@@ -166,6 +182,7 @@ export class SpeedComparisonAnalyzer {
     const avgBrakeA = this.average(cornerPointsA.map(p => p.brake));
     const avgBrakeB = this.average(cornerPointsB.map(p => p.brake));
 
+    // Calculate time spent in corner
     const timeOffsetA = lapA[0].time;
     const timeOffsetB = lapB[0].time;
 
@@ -253,6 +270,10 @@ export class SpeedComparisonAnalyzer {
     };
   }
 
+  /**
+   * Detect acceleration zones between corners
+   * Zones must meet minimum length and throttle threshold
+   */
   private detectAccelerationZones(
     aligned: AlignedLaps,
     corners: CornerSpeedComparison[]
@@ -262,6 +283,7 @@ export class SpeedComparisonAnalyzer {
 
     if (corners.length === 0) return zones;
 
+    // Zone from start to first corner
     if (corners[0].entryDistance > this.config.minAccelZoneLength) {
       const zone = this.analyzeAccelerationZone(
         lapA, lapB,
@@ -273,6 +295,7 @@ export class SpeedComparisonAnalyzer {
       if (zone) zones.push(zone);
     }
 
+    // Zones between corners
     for (let i = 0; i < corners.length - 1; i++) {
       const currentExit = corners[i].exitDistance;
       const nextEntry = corners[i + 1].entryDistance;
@@ -290,6 +313,7 @@ export class SpeedComparisonAnalyzer {
       }
     }
 
+    // Zone from last corner to finish
     const lastCorner = corners[corners.length - 1];
     const trackEnd = lapA[lapA.length - 1].distance;
     if (trackEnd - lastCorner.exitDistance > this.config.minAccelZoneLength) {
@@ -306,6 +330,10 @@ export class SpeedComparisonAnalyzer {
     return zones;
   }
 
+  /**
+   * Analyze acceleration zone between two corners
+   * Returns null if throttle usage is too low
+   */
   private analyzeAccelerationZone(
     lapA: NormalizedTelemetryPoint[],
     lapB: NormalizedTelemetryPoint[],
@@ -319,6 +347,7 @@ export class SpeedComparisonAnalyzer {
 
     if (pointsA.length < 2 || pointsB.length < 2) return null;
 
+    // Check if this is actually an acceleration zone (throttle usage)
     const avgThrottleA = this.average(pointsA.map(p => p.throttle));
     const avgThrottleB = this.average(pointsB.map(p => p.throttle));
 
@@ -327,6 +356,7 @@ export class SpeedComparisonAnalyzer {
       return null;
     }
 
+    // Calculate speed gain and acceleration
     const startSpeedA = pointsA[0].speed;
     const endSpeedA = pointsA[pointsA.length - 1].speed;
     const startSpeedB = pointsB[0].speed;
@@ -421,6 +451,9 @@ export class SpeedComparisonAnalyzer {
     };
   }
 
+  /**
+   * Find telemetry point closest to target distance
+   */
   private findPointAtDistance(
     points: NormalizedTelemetryPoint[],
     distance: number,
@@ -439,6 +472,9 @@ export class SpeedComparisonAnalyzer {
     return closest;
   }
 
+  /**
+   * Get all points within distance range
+   */
   private getPointsInRange(
     points: NormalizedTelemetryPoint[],
     startDistance: number,
@@ -447,16 +483,25 @@ export class SpeedComparisonAnalyzer {
     return points.filter(p => p.distance >= startDistance && p.distance <= endDistance);
   }
 
+  /**
+   * Calculate average of numeric array
+   */
   private average(values: number[]): number {
     if (values.length === 0) return 0;
     return values.reduce((sum, v) => sum + v, 0) / values.length;
   }
 
+  /**
+   * Format time delta with sign (+/-)
+   */
   formatTimeDelta(seconds: number): string {
     const sign = seconds >= 0 ? '+' : '';
     return `${sign}${seconds.toFixed(3)}s`;
   }
 
+  /**
+   * Get color for delta (green = faster, red = slower)
+   */
   getDeltaColor(delta: number): 'green' | 'red' | 'neutral' {
     if (delta < -0.01) return 'green';
     if (delta > 0.01) return 'red';

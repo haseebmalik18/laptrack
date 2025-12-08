@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Navbar } from "../components/Navbar";
+import { normalizeTelemetry, extractTrackSimpleName, selectReferenceLap } from "../lib/lapUtils";
 
 // Lazy load heavy components for better performance
 const TrackMapWithBoundaries = dynamic(() => import("../components/TrackMapWithBoundaries").then(mod => ({ default: mod.TrackMapWithBoundaries })), { ssr: false });
@@ -23,6 +24,7 @@ export default function LapAnalysisPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showDelta, setShowDelta] = useState(false);
 
+  // Load available laps and auto-select reference lap
   useEffect(() => {
     setLapsLoading(true);
     fetch("/api/laps")
@@ -32,24 +34,11 @@ export default function LapAnalysisPage() {
         if (data.laps.length > 0) {
           setSelectedLap(data.laps[0].lapNumber);
 
-          // Auto-select fastest lap as reference (if we have multiple laps)
+          // Auto-select fastest lap as reference
           if (data.laps.length >= 2) {
-            const fastestLap = [...data.laps].sort((a, b) => {
-              // Parse lap times (format: "1:32.456")
-              const parseTime = (timeStr: string) => {
-                const [mins, secs] = timeStr.split(':');
-                return parseFloat(mins) * 60 + parseFloat(secs);
-              };
-              return parseTime(a.lapTime) - parseTime(b.lapTime);
-            })[0];
-
-            // Set fastest lap as reference (unless it's the same as selected lap)
-            if (fastestLap.lapNumber !== data.laps[0].lapNumber) {
-              setReferenceLap(fastestLap.lapNumber);
-              setShowDelta(true);
-            } else if (data.laps.length > 1) {
-              // If fastest is the selected one, pick second fastest
-              setReferenceLap(data.laps[1].lapNumber);
+            const refLapNumber = selectReferenceLap(data.laps, data.laps[0].lapNumber);
+            if (refLapNumber) {
+              setReferenceLap(refLapNumber);
               setShowDelta(true);
             }
           }
@@ -62,6 +51,7 @@ export default function LapAnalysisPage() {
       });
   }, []);
 
+  // Load selected lap telemetry data
   useEffect(() => {
     if (selectedLap === null) return;
 
@@ -69,17 +59,9 @@ export default function LapAnalysisPage() {
     fetch(`/api/laps/${selectedLap}`)
       .then((res) => res.json())
       .then((data) => {
-        // Normalize time and distance to start from 0 (client-side normalization)
-        if (data.telemetry && data.telemetry.length > 0) {
-          const startTime = data.telemetry[0].time;
-          const startDistance = data.telemetry[0].distance;
-          data.telemetry = data.telemetry.map((point: any) => ({
-            ...point,
-            time: point.time - startTime,
-            distance: point.distance - startDistance
-          }));
+        if (data.telemetry) {
+          data.telemetry = normalizeTelemetry(data.telemetry);
         }
-
         setLapData(data);
         setLapDataLoading(false);
       })
@@ -89,6 +71,7 @@ export default function LapAnalysisPage() {
       });
   }, [selectedLap]);
 
+  // Load reference lap telemetry data
   useEffect(() => {
     if (referenceLap === null) {
       setReferenceLapData(null);
@@ -98,30 +81,20 @@ export default function LapAnalysisPage() {
     fetch(`/api/laps/${referenceLap}`)
       .then((res) => res.json())
       .then((data) => {
-        // Normalize time and distance to start from 0 (client-side normalization)
-        if (data.telemetry && data.telemetry.length > 0) {
-          const startTime = data.telemetry[0].time;
-          const startDistance = data.telemetry[0].distance;
-          data.telemetry = data.telemetry.map((point: any) => ({
-            ...point,
-            time: point.time - startTime,
-            distance: point.distance - startDistance
-          }));
+        if (data.telemetry) {
+          data.telemetry = normalizeTelemetry(data.telemetry);
         }
-
         setReferenceLapData(data);
       })
       .catch((err) => console.error("Failed to load reference lap:", err));
   }, [referenceLap]);
 
+  // Load corner database for current track
   useEffect(() => {
     if (!lapData?.metadata?.trackName) return;
 
-    const trackName = lapData.metadata.trackName;
-    const match = trackName.match(/\(([^)]+)\)/);
-    const simpleName = match ? match[1].toLowerCase() : trackName.toLowerCase();
+    const simpleName = extractTrackSimpleName(lapData.metadata.trackName);
 
-    // Load corners immediately (needed for visualization)
     fetch(`/api/corners/${simpleName}`)
       .then((res) => res.json())
       .then((data) => {

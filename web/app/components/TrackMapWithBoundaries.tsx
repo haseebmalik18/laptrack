@@ -168,17 +168,36 @@ export function TrackMapWithBoundaries({
       ctx.closePath();
       ctx.fill();
 
-      // Draw kerbs (red/white striped pattern) - continuous along corners
+      const getBahrainKerbConfig = (cornerIndex: number) => {
+        const configs = [
+          { inside: true, outside: true, outsideStart: 0.5, outsideEnd: 1.0 },  // T1
+          { inside: true, outside: true, outsideStart: 0.3, outsideEnd: 1.0 },  // T2
+          { inside: true, outside: false },  // T3
+          { inside: true, outside: true, outsideStart: 0.4, outsideEnd: 1.0 },  // T4
+          { inside: true, outside: false },  // T5
+          { inside: true, outside: true, outsideStart: 0.5, outsideEnd: 1.0 },  // T6
+          { inside: true, outside: false },  // T7
+          { inside: true, outside: true, outsideStart: 0.4, outsideEnd: 1.0 },  // T8
+          { inside: true, outside: false },  // T9
+          { inside: true, outside: true, outsideStart: 0.3, outsideEnd: 1.0 },  // T10
+          { inside: true, outside: true, outsideStart: 0.6, outsideEnd: 1.0 },  // T11
+          { inside: true, outside: false },  // T12
+          { inside: true, outside: true, outsideStart: 0.5, outsideEnd: 1.0 },  // T13
+          { inside: true, outside: true, outsideStart: 0.4, outsideEnd: 1.0 },  // T14
+          { inside: true, outside: false },  // T15
+        ];
+        return configs[cornerIndex] || { inside: true, outside: false };
+      };
+
       const drawKerbsAtCorners = () => {
         ctx.lineWidth = 5;
         ctx.lineCap = "butt";
 
-        // Draw kerbs at each corner
-        corners.forEach((corner: any) => {
+        corners.forEach((corner: any, idx: number) => {
           const isLeftTurn = corner.direction === 'left';
-          const cornerSpeed = corner.apexSpeed || 100;
           const insideBoundary = isLeftTurn ? boundaries.left : boundaries.right;
           const outsideBoundary = isLeftTurn ? boundaries.right : boundaries.left;
+          const kerbConfig = getBahrainKerbConfig(idx);
 
           const drawKerbOnBoundary = (boundary: BoundaryPoint[], start: number, end: number) => {
             for (let i = 0; i < boundary.length - 1; i++) {
@@ -186,7 +205,6 @@ export function TrackMapWithBoundaries({
               const p2 = boundary[i + 1];
 
               if (p1.distance >= start && p1.distance <= end) {
-                // Alternate between red and white every 3 meters
                 const segmentStart = Math.floor(p1.distance / 3);
                 const color = segmentStart % 2 === 0 ? "#cc0000" : "#d8d8d8";
 
@@ -199,13 +217,15 @@ export function TrackMapWithBoundaries({
             }
           };
 
-          // Inside kerb - continuous from entry to exit (all corners)
-          drawKerbOnBoundary(insideBoundary, corner.entryDistance, corner.exitDistance);
+          if (kerbConfig.inside) {
+            drawKerbOnBoundary(insideBoundary, corner.entryDistance, corner.exitDistance);
+          }
 
-          // Exit kerb for fast corners (>160 km/h)
-          if (cornerSpeed > 160) {
-            const exitStart = corner.apexDistance + (corner.exitDistance - corner.apexDistance) * 0.3;
-            drawKerbOnBoundary(outsideBoundary, exitStart, corner.exitDistance);
+          if (kerbConfig.outside) {
+            const cornerLength = corner.exitDistance - corner.entryDistance;
+            const exitStart = corner.entryDistance + cornerLength * (kerbConfig.outsideStart || 0.5);
+            const exitEnd = corner.entryDistance + cornerLength * (kerbConfig.outsideEnd || 1.0);
+            drawKerbOnBoundary(outsideBoundary, exitStart, exitEnd);
           }
         });
       };
@@ -269,7 +289,7 @@ export function TrackMapWithBoundaries({
       }
     }
 
-    // Draw braking zones - DISABLED
+    // Draw braking zones - DISABLED (showing in wrong spots)
     // if (showBrakingZones) {
     //   corners.forEach((corner: any) => {
     //     if (corner.brakingZone) {
@@ -359,35 +379,43 @@ export function TrackMapWithBoundaries({
       ctx.stroke();
     }
 
-    // Draw corner markers
-    if (showCornerMarkers) {
-      corners.forEach((corner: any, idx: number) => {
-        const apexPoint = telemetry.find(
-          (p: any) => Math.abs(p.distance - corner.apexDistance) < 5
-        );
+    // Draw corner markers - DISABLED (WIP)
+    // if (showCornerMarkers) {
+    //   corners.forEach((corner: any, idx: number) => {
+    //     // Find closest telemetry point to apex distance (not just within 5m)
+    //     let apexPoint = null;
+    //     let minDist = Infinity;
 
-        if (apexPoint) {
-          const x = toScreenX(apexPoint.x, apexPoint.y);
-          const y = toScreenY(apexPoint.x, apexPoint.y);
+    //     for (const p of telemetry) {
+    //       const dist = Math.abs(p.distance - corner.apexDistance);
+    //       if (dist < minDist) {
+    //         minDist = dist;
+    //         apexPoint = p;
+    //       }
+    //     }
 
-          ctx.fillStyle = "#000";
-          ctx.beginPath();
-          ctx.arc(x, y, 16, 0, Math.PI * 2);
-          ctx.fill();
+    //     if (apexPoint) {
+    //       const x = toScreenX(apexPoint.x, apexPoint.y);
+    //       const y = toScreenY(apexPoint.x, apexPoint.y);
 
-          ctx.fillStyle = "#fff";
-          ctx.beginPath();
-          ctx.arc(x, y, 14, 0, Math.PI * 2);
-          ctx.fill();
+    //       ctx.fillStyle = "#000";
+    //       ctx.beginPath();
+    //       ctx.arc(x, y, 16, 0, Math.PI * 2);
+    //       ctx.fill();
 
-          ctx.fillStyle = "#000";
-          ctx.font = "bold 11px sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(`${idx + 1}`, x, y);
-        }
-      });
-    }
+    //       ctx.fillStyle = "#fff";
+    //       ctx.beginPath();
+    //       ctx.arc(x, y, 14, 0, Math.PI * 2);
+    //       ctx.fill();
+
+    //       ctx.fillStyle = "#000";
+    //       ctx.font = "bold 11px sans-serif";
+    //       ctx.textAlign = "center";
+    //       ctx.textBaseline = "middle";
+    //       ctx.fillText(`${idx + 1}`, x, y);
+    //     }
+    //   });
+    // }
 
     // Draw improvement opportunity markers (only where slower than reference)
     if (showImprovements && referenceLapData?.corners && currentPoint) {
@@ -408,9 +436,17 @@ export function TrackMapWithBoundaries({
           // Only show marker if losing significant time (>0.1s)
           if (timeLoss > 0.1) {
             const bz = corner.brakingZone;
-            const markerPoint = telemetry.find((p: any) =>
-              Math.abs(p.distance - bz.entryDistance) < 5
-            );
+
+            // Find closest telemetry point to braking zone entry
+            let markerPoint = null;
+            let minDist = Infinity;
+            for (const p of telemetry) {
+              const dist = Math.abs(p.distance - bz.entryDistance);
+              if (dist < minDist) {
+                minDist = dist;
+                markerPoint = p;
+              }
+            }
 
             if (markerPoint) {
               const mx = toScreenX(markerPoint.x, markerPoint.y);
@@ -582,34 +618,22 @@ export function TrackMapWithBoundaries({
           Line
         </button>
         <button
-          onClick={() => setShowBrakingZones(!showBrakingZones)}
-          className={`px-2 py-1 text-[10px] uppercase tracking-wide transition-colors ${
-            showBrakingZones
-              ? 'bg-black/90 text-white border border-zinc-700'
-              : 'bg-black/60 text-zinc-500 border border-zinc-800 hover:bg-black/80'
-          }`}
+          disabled
+          className="px-2 py-1 text-[10px] uppercase tracking-wide bg-black/40 text-zinc-600 border border-zinc-800 cursor-not-allowed"
         >
-          Braking
+          Braking (WIP)
         </button>
         <button
-          onClick={() => setShowCornerMarkers(!showCornerMarkers)}
-          className={`px-2 py-1 text-[10px] uppercase tracking-wide transition-colors ${
-            showCornerMarkers
-              ? 'bg-black/90 text-white border border-zinc-700'
-              : 'bg-black/60 text-zinc-500 border border-zinc-800 hover:bg-black/80'
-          }`}
+          disabled
+          className="px-2 py-1 text-[10px] uppercase tracking-wide bg-black/40 text-zinc-600 border border-zinc-800 cursor-not-allowed"
         >
-          Corners
+          Corners (WIP)
         </button>
         <button
-          onClick={() => setShowImprovements(!showImprovements)}
-          className={`px-2 py-1 text-[10px] uppercase tracking-wide transition-colors ${
-            showImprovements
-              ? 'bg-black/90 text-yellow-400 border border-yellow-600'
-              : 'bg-black/60 text-zinc-500 border border-zinc-800 hover:bg-black/80'
-          }`}
+          disabled
+          className="px-2 py-1 text-[10px] uppercase tracking-wide bg-black/40 text-zinc-600 border border-zinc-800 cursor-not-allowed"
         >
-          Tips
+          Tips (WIP)
         </button>
       </div>
 

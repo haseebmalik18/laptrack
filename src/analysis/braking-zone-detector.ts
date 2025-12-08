@@ -1,42 +1,49 @@
+/**
+ * Braking Zone Detector - Detects braking zones using brake input + deceleration validation
+ *
+ * Combines brake pedal signal with actual deceleration to identify real braking zones.
+ * Classifies intensity and detects trail braking (braking into corner entry).
+ */
+
 import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
 
 export enum BrakingIntensity {
-  LIGHT = 'light',
-  MEDIUM = 'medium',
-  HEAVY = 'heavy',
-  EXTREME = 'extreme',
+  LIGHT = 'light',          // <40% brake or <30 km/h loss
+  MEDIUM = 'medium',        // 40-70% brake or 30-50 km/h loss
+  HEAVY = 'heavy',          // 70-90% brake and 50-80 km/h loss
+  EXTREME = 'extreme',      // >90% brake and >80 km/h loss OR >15 m/s² deceleration
 }
 
 export interface BrakingZone {
   id: number;
-  entryDistance: number;
-  peakDistance: number;
-  exitDistance: number;
-  entrySpeed: number;
-  minSpeed: number;
-  exitSpeed: number;
-  speedLoss: number;
-  peakBrakePressure: number;
-  avgBrakePressure: number;
-  peakDeceleration: number;
-  avgDeceleration: number;
-  brakingDistance: number;
-  brakingDuration: number;
+  entryDistance: number;       // Where braking begins
+  peakDistance: number;        // Maximum brake pressure point
+  exitDistance: number;        // Where braking ends
+  entrySpeed: number;          // Speed at entry (km/h)
+  minSpeed: number;            // Minimum speed in zone
+  exitSpeed: number;           // Speed at exit (km/h)
+  speedLoss: number;           // Total speed reduction (km/h)
+  peakBrakePressure: number;   // Peak brake (0-1)
+  avgBrakePressure: number;    // Average brake (0-1)
+  peakDeceleration: number;    // Peak deceleration (m/s²)
+  avgDeceleration: number;     // Average deceleration (m/s²)
+  brakingDistance: number;     // Zone length (meters)
+  brakingDuration: number;     // Duration (seconds)
   intensity: BrakingIntensity;
-  isTrailBraking: boolean;
+  isTrailBraking: boolean;     // Brake extends into corner
   entryIndex: number;
   peakIndex: number;
   exitIndex: number;
 }
 
 export interface BrakingZoneConfig {
-  minBrakeThreshold: number;
-  minSpeedLoss: number;
-  minBrakingDistance: number;
-  minBrakingDuration: number;
-  brakeSmoothingWindow: number;
-  trailBrakingThreshold: number;
-  ignoreDistanceStart: number;
+  minBrakeThreshold: number;      // Min brake to detect (0-1, default: 0.15)
+  minSpeedLoss: number;           // Min speed loss (km/h, default: 10)
+  minBrakingDistance: number;     // Min distance (meters, default: 10)
+  minBrakingDuration: number;     // Min duration (seconds, default: 0.2)
+  brakeSmoothingWindow: number;   // Smoothing window (meters, default: 3)
+  trailBrakingThreshold: number;  // Trail brake threshold (0-1, default: 0.3)
+  ignoreDistanceStart: number;    // Ignore first N meters (default: 200)
 }
 
 const DEFAULT_BRAKING_CONFIG: BrakingZoneConfig = {
@@ -68,6 +75,8 @@ function smoothArray(data: number[], windowSize: number): number[] {
   return smoothed;
 }
 
+// Calculate deceleration from speed change
+// Formula: (Δspeed / 3.6) / Δtime (negative = braking)
 function calculateDeceleration(points: NormalizedTelemetryPoint[]): number[] {
   const decelerations: number[] = [];
 
@@ -154,6 +163,9 @@ function classifyBrakingIntensity(
   return BrakingIntensity.LIGHT;
 }
 
+// Dual-signal braking zone detection (brake pedal + deceleration validation)
+// Zones detected when BOTH brake > threshold AND decel < -0.5 m/s²
+// Classifies intensity, detects trail braking, ignores first 200m (standing start)
 export function detectBrakingZones(
   points: NormalizedTelemetryPoint[],
   config: Partial<BrakingZoneConfig> = {}
@@ -236,6 +248,7 @@ export function detectBrakingZones(
   return zones;
 }
 
+// Associate braking zones with corners (finds zone within 50m before corner entry)
 export function associateBrakingZonesWithCorners(
   brakingZones: BrakingZone[],
   corners: any[]
@@ -256,6 +269,7 @@ export function associateBrakingZonesWithCorners(
   return cornerToBraking;
 }
 
+// Calculate aggregate statistics for all braking zones
 export function getBrakingStatistics(zones: BrakingZone[]): {
   totalZones: number;
   avgBrakingDistance: number;

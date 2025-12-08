@@ -1,32 +1,38 @@
+/**
+ * Telemetry Aligner - Transforms telemetry coordinates to match track map
+ *
+ * Applies rotation, scaling, and translation to align raw telemetry with pre-defined track maps
+ */
+
 import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
 import { TrackMap } from './track-map-loader';
 
 export interface AlignmentTransform {
-  scale: number;
-  rotation: number;
-  translateX: number;
-  translateY: number;
+  scale: number;          // Scale factor to match track size
+  rotation: number;       // Rotation angle in degrees
+  translateX: number;     // X translation offset
+  translateY: number;     // Y translation offset
 }
 
 export class TelemetryAligner {
   /**
-   * Aligns telemetry data to a reference track map
-   * This implements the Track Titan approach: transform telemetry to match track outline
+   * Aligns telemetry to track map using rotation, scaling, and translation
+   * Process: rotate 270° → scale to match track size → translate to center
    */
   alignToTrackMap(
     telemetry: NormalizedTelemetryPoint[],
     trackMap: TrackMap
   ): { aligned: NormalizedTelemetryPoint[]; transform: AlignmentTransform } {
-    // Step 1: Calculate bounds of telemetry (using rotated coordinates)
+    // Rotate telemetry 270° (rx = y, ry = -x)
     const telemetryPoints = telemetry.map(p => ({
-      x: p.y!,  // Rotate: rx = y
-      y: -p.x!, // ry = -x
+      x: p.y!,
+      y: -p.x!,
     }));
 
     const telBounds = this.getBounds(telemetryPoints);
     const trackBounds = trackMap.bounds;
 
-    // Step 2: Calculate scale factor to match track length
+    // Calculate scale factor to match track dimensions
     const telRangeX = telBounds.maxX - telBounds.minX;
     const telRangeY = telBounds.maxY - telBounds.minY;
     const trackRangeX = trackBounds.maxX - trackBounds.minX;
@@ -36,7 +42,7 @@ export class TelemetryAligner {
     const scaleY = trackRangeY / telRangeY;
     const scale = (scaleX + scaleY) / 2; // Average scale
 
-    // Step 3: Calculate translation to center
+    // Calculate translation to center telemetry on track
     const telCenterX = (telBounds.minX + telBounds.maxX) / 2;
     const telCenterY = (telBounds.minY + telBounds.maxY) / 2;
     const trackCenterX = (trackBounds.minX + trackBounds.maxX) / 2;
@@ -45,10 +51,9 @@ export class TelemetryAligner {
     const translateX = trackCenterX - telCenterX * scale;
     const translateY = trackCenterY - telCenterY * scale;
 
-    // Step 4: Apply transformation
+    // Apply full transformation: rotate → scale → translate
     const aligned = telemetry.map(p => ({
       ...p,
-      // Transform: rotate, scale, translate
       x: (p.y! * scale + translateX),
       y: (-p.x! * scale + translateY),
     }));
@@ -57,13 +62,16 @@ export class TelemetryAligner {
       aligned,
       transform: {
         scale,
-        rotation: 270, // We applied 270-degree rotation
+        rotation: 270,
         translateX,
         translateY,
       },
     };
   }
 
+  /**
+   * Calculate bounding box for a set of points
+   */
   private getBounds(points: { x: number; y: number }[]): {
     minX: number;
     maxX: number;

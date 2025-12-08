@@ -1,25 +1,34 @@
+/**
+ * UDP Listener - Captures F1 2024 telemetry packets and records lap data
+ *
+ * Listens on port 20777, merges multiple packet types, calculates distance from X/Y position
+ * (workaround for Grand Prix mode bug), and saves complete laps to CSV/JSON.
+ *
+ * Requires F1 2024 telemetry: UDP enabled, port 20777, broadcast mode
+ */
+
 import * as dgram from "dgram";
 import { F1TelemetryParser } from "../parsers/f1-2024-parser";
-import { LapRecorder } from "./lap-recorder";
+import { LapRecorder } from "../services/lap-recorder";
 import { NormalizedTelemetryPoint, PacketType } from "../types/f1-2024-packets";
 import { getTrackName, getTeamName } from "../constants/f1-2024-constants";
 
-export class UDPListener {
+class UDPListener {
   private socket: dgram.Socket;
   private parser: F1TelemetryParser;
   private recorder: LapRecorder;
   private port: number;
 
-  private latestTelemetry: any = null;
-  private latestLapData: any = null;
-  private latestMotion: any = null;
-  private lastX: number = 0;
-  private lastY: number = 0;
-  private totalDistance: number = 0;
+  private latestTelemetry: any = null;     // Speed, throttle, brake, gear, RPM
+  private latestLapData: any = null;       // Timing, distance, sectors
+  private latestMotion: any = null;        // Position, G-forces, yaw
+  private lastX: number = 0;               // Previous X for distance calc
+  private lastY: number = 0;               // Previous Y for distance calc
+  private totalDistance: number = 0;       // Accumulated distance (workaround)
   private trackName: string = "Unknown";
   private trackId: number = -1;
   private carName: string = "Unknown";
-  private playerCarIndex: number = -1;
+  private playerCarIndex: number = -1;    // Player car index (0-21)
   private playerIndexConfirmed: boolean = false;
 
   constructor(port: number = 20777) {
@@ -48,6 +57,7 @@ export class UDPListener {
   private handlePacket(buffer: Buffer) {
     const header = this.parser.parseHeader(buffer);
 
+    // Process PARTICIPANTS to get player index
     switch (header.packetId) {
       case PacketType.PARTICIPANTS:
         const participants = this.parser.parseParticipantsData(buffer);
@@ -64,7 +74,7 @@ export class UDPListener {
         break;
     }
 
-    // Don't process telemetry until we've confirmed the player index
+    // Wait until we have player index
     if (this.playerCarIndex === -1) {
       return;
     }
@@ -116,7 +126,7 @@ export class UDPListener {
     const currentX = this.latestMotion.worldPositionX;
     const currentY = this.latestMotion.worldPositionZ;
 
-    // Calculate total distance using X/Y position changes
+    // Calculate distance using Euclidean distance (workaround for Grand Prix bug)
     if (this.lastX !== 0 || this.lastY !== 0) {
       const dx = currentX - this.lastX;
       const dy = currentY - this.lastY;
@@ -152,3 +162,18 @@ export class UDPListener {
     console.log("Listener stopped");
   }
 }
+
+// CLI Entry Point
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 20777;
+
+console.log('LapLens Console Listener - F1 2024');
+console.log('===================================\n');
+
+const listener = new UDPListener(PORT);
+listener.start();
+
+process.on('SIGINT', () => {
+  console.log('\nShutting down...');
+  listener.stop();
+  process.exit(0);
+});

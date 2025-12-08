@@ -12,9 +12,9 @@
   },
   "homepage": "https://github.com/haseebmalik18/laptrack#readme",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "tsx src/cli/udp-listener.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/cli/udp-listener.js",
     "test": "echo \"Tests coming soon\" && exit 0",
     "test:normalizer": "tsx src/test-normalizer.ts"
   },

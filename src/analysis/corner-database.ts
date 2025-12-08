@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Corner, CornerDirection, CornerType } from './corner-detector';
+import { Corner, CornerDirection, CornerType } from './corner-types';
 import { BrakingZone, BrakingIntensity } from './braking-zone-detector';
 
 export interface BrakingZoneEntry {
@@ -27,6 +27,9 @@ export interface CornerDatabaseEntry {
   entryDistance: number;
   apexDistance: number;
   exitDistance: number;
+  // Store actual track coordinates for accurate visualization
+  apexX: number;
+  apexY: number;
   type: CornerType;
   direction: CornerDirection;
   brakingZone?: BrakingZoneEntry;
@@ -112,7 +115,8 @@ export class CornerDatabase {
     trackId: number,
     trackLength: number,
     corners: Corner[],
-    brakingZones?: BrakingZone[]
+    brakingZones?: BrakingZone[],
+    telemetry?: Array<{ distance: number; x: number; y: number }>
   ): void {
     const filePath = this.getFilePath(trackName);
     const isUpdate = fs.existsSync(filePath);
@@ -147,11 +151,31 @@ export class CornerDatabase {
 
     const databaseEntries: CornerDatabaseEntry[] = corners.map((corner, index) => {
       const cornerNumber = index + 1;
+
+      // Find apex coordinates from telemetry
+      let apexX = 0, apexY = 0;
+      if (telemetry) {
+        // Find closest telemetry point to apex distance
+        let closestPoint = telemetry[0];
+        let minDist = Infinity;
+        for (const point of telemetry) {
+          const dist = Math.abs(point.distance - corner.apexDistance);
+          if (dist < minDist) {
+            minDist = dist;
+            closestPoint = point;
+          }
+        }
+        apexX = closestPoint.x;
+        apexY = closestPoint.y;
+      }
+
       const entry: CornerDatabaseEntry = {
         number: cornerNumber,
         entryDistance: Math.round(corner.entryDistance),
         apexDistance: Math.round(corner.apexDistance),
         exitDistance: Math.round(corner.exitDistance),
+        apexX: Math.round(apexX * 100) / 100, // Store with 2 decimal places
+        apexY: Math.round(apexY * 100) / 100,
         type: corner.type,
         direction: corner.direction,
       };

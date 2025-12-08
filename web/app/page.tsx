@@ -4,6 +4,7 @@ import { Navbar } from "./components/Navbar";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
+// Home page - landing page with stats and feature overview
 export default function Home() {
   const [stats, setStats] = useState([
     { label: "Laps Recorded", value: "0", change: "" },
@@ -12,6 +13,7 @@ export default function Home() {
     { label: "Total Data Points", value: "0", change: "" },
   ]);
 
+  // Load stats from lap data
   useEffect(() => {
     fetch("/api/laps")
       .then((res) => res.json())

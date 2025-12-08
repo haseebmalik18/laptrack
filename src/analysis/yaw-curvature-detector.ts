@@ -1,14 +1,14 @@
-import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
-import { Corner, CornerDirection, CornerType } from './corner-detector';
+import { NormalizedTelemetryPoint } from "../types/f1-2024-packets";
+import { Corner, CornerDirection, CornerType } from "./corner-types";
 
 export interface YawCurvatureConfig {
-  minYawRateThreshold: number;       // Minimum yaw rate (rad/s)
-  minCurvatureThreshold: number;     // Minimum curvature
-  yawSmoothingWindow: number;
-  curvatureSmoothingWindow: number;
-  minCornerLength: number;
-  minCornerDuration: number;
-  cornerMergeDistance: number;
+  minYawRateThreshold: number;       // Min yaw rate (rad/s, default: 0.08)
+  minCurvatureThreshold: number;     // Min curvature (default: 0.003)
+  yawSmoothingWindow: number;        // Yaw smoothing window (meters, default: 5)
+  curvatureSmoothingWindow: number;  // Curvature smoothing window (meters, default: 10)
+  minCornerLength: number;           // Min corner length (meters, default: 15)
+  minCornerDuration: number;         // Min duration (seconds, default: 0.25)
+  cornerMergeDistance: number;       // Max merge gap (meters, default: 50)
 }
 
 const DEFAULT_YAW_CURVATURE_CONFIG: YawCurvatureConfig = {
@@ -21,36 +21,58 @@ const DEFAULT_YAW_CURVATURE_CONFIG: YawCurvatureConfig = {
   cornerMergeDistance: 50,
 };
 
-function calculateHeading(x1: number, y1: number, x2: number, y2: number): number {
+// Calculate heading angle between two points
+function calculateHeading(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
   return Math.atan2(y2 - y1, x2 - x1);
 }
 
+// Normalize angle to [-π, π] (handles wraparound)
 function normalizeAngle(angle: number): number {
   while (angle > Math.PI) angle -= 2 * Math.PI;
   while (angle < -Math.PI) angle += 2 * Math.PI;
   return angle;
 }
 
-// Calculate curvature from X/Y position
+// Calculate track curvature from X/Y position
+// Formula: curvature = |Δheading| / segment_length
 function calculateCurvature(points: NormalizedTelemetryPoint[]): number[] {
   const curvatures: number[] = [];
   if (points.length < 3) return curvatures;
 
   curvatures.push(0);
   for (let i = 1; i < points.length - 1; i++) {
-    const heading1 = calculateHeading(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y);
-    const heading2 = calculateHeading(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y);
+    const heading1 = calculateHeading(
+      points[i - 1].x,
+      points[i - 1].y,
+      points[i].x,
+      points[i].y
+    );
+    const heading2 = calculateHeading(
+      points[i].x,
+      points[i].y,
+      points[i + 1].x,
+      points[i + 1].y
+    );
     const deltaHeading = normalizeAngle(heading2 - heading1);
     const segmentLength = Math.sqrt(
-      Math.pow(points[i + 1].x - points[i].x, 2) + Math.pow(points[i + 1].y - points[i].y, 2)
+      Math.pow(points[i + 1].x - points[i].x, 2) +
+        Math.pow(points[i + 1].y - points[i].y, 2)
     );
-    const curvature = segmentLength > 0 ? Math.abs(deltaHeading) / segmentLength : 0;
+    const curvature =
+      segmentLength > 0 ? Math.abs(deltaHeading) / segmentLength : 0;
     curvatures.push(curvature);
   }
   curvatures.push(0);
   return curvatures;
 }
 
+// Calculate yaw rate (car rotation speed in rad/s)
+// Formula: yaw_rate = |Δyaw| / Δtime
 function calculateYawRate(points: NormalizedTelemetryPoint[]): number[] {
   const yawRates: number[] = [];
 
@@ -63,9 +85,21 @@ function calculateYawRate(points: NormalizedTelemetryPoint[]): number[] {
       const deltaYaw = normalizeAngle(points[i].yaw - points[i - 1].yaw);
       yawRates.push(deltaTime > 0 ? Math.abs(deltaYaw) / deltaTime : 0);
     } else {
-      const heading1 = calculateHeading(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y);
-      const heading2 = i < points.length - 1 ?
-        calculateHeading(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y) : heading1;
+      const heading1 = calculateHeading(
+        points[i - 1].x,
+        points[i - 1].y,
+        points[i].x,
+        points[i].y
+      );
+      const heading2 =
+        i < points.length - 1
+          ? calculateHeading(
+              points[i].x,
+              points[i].y,
+              points[i + 1].x,
+              points[i + 1].y
+            )
+          : heading1;
       const deltaHeading = normalizeAngle(heading2 - heading1);
       yawRates.push(deltaTime > 0 ? Math.abs(deltaHeading) / deltaTime : 0);
     }
@@ -74,6 +108,7 @@ function calculateYawRate(points: NormalizedTelemetryPoint[]): number[] {
   return yawRates;
 }
 
+// Apply moving average smoothing to reduce sensor noise
 function smoothArray(data: number[], windowSize: number): number[] {
   const smoothed: number[] = [];
   const halfWindow = Math.floor(windowSize / 2);
@@ -82,7 +117,11 @@ function smoothArray(data: number[], windowSize: number): number[] {
     let sum = 0;
     let count = 0;
 
-    for (let j = Math.max(0, i - halfWindow); j <= Math.min(data.length - 1, i + halfWindow); j++) {
+    for (
+      let j = Math.max(0, i - halfWindow);
+      j <= Math.min(data.length - 1, i + halfWindow);
+      j++
+    ) {
       sum += data[j];
       count++;
     }
@@ -122,7 +161,11 @@ function findApex(
   return apexIdx;
 }
 
-function findMinSpeed(points: NormalizedTelemetryPoint[], startIdx: number, endIdx: number): number {
+function findMinSpeed(
+  points: NormalizedTelemetryPoint[],
+  startIdx: number,
+  endIdx: number
+): number {
   let minSpeed = Infinity;
   for (let i = startIdx; i <= endIdx; i++) {
     if (points[i].speed < minSpeed) {
@@ -132,16 +175,34 @@ function findMinSpeed(points: NormalizedTelemetryPoint[], startIdx: number, endI
   return minSpeed;
 }
 
-function calculateCornerDirection(yawRates: number[], points: NormalizedTelemetryPoint[], startIdx: number, endIdx: number): CornerDirection {
+function calculateCornerDirection(
+  yawRates: number[],
+  points: NormalizedTelemetryPoint[],
+  startIdx: number,
+  endIdx: number
+): CornerDirection {
   // Use actual yaw/heading change to determine direction
   let totalYawChange = 0;
 
   for (let i = startIdx; i < endIdx; i++) {
     if (i + 1 < points.length) {
-      const deltaYaw = points[i].yaw !== 0 ?
-        normalizeAngle(points[i + 1].yaw - points[i].yaw) :
-        normalizeAngle(calculateHeading(points[i + 1].x, points[i + 1].y, points[Math.min(i + 2, points.length - 1)].x, points[Math.min(i + 2, points.length - 1)].y) -
-                      calculateHeading(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y));
+      const deltaYaw =
+        points[i].yaw !== 0
+          ? normalizeAngle(points[i + 1].yaw - points[i].yaw)
+          : normalizeAngle(
+              calculateHeading(
+                points[i + 1].x,
+                points[i + 1].y,
+                points[Math.min(i + 2, points.length - 1)].x,
+                points[Math.min(i + 2, points.length - 1)].y
+              ) -
+                calculateHeading(
+                  points[i].x,
+                  points[i].y,
+                  points[i + 1].x,
+                  points[i + 1].y
+                )
+            );
 
       totalYawChange += deltaYaw;
     }
@@ -150,6 +211,9 @@ function calculateCornerDirection(yawRates: number[], points: NormalizedTelemetr
   return totalYawChange > 0 ? CornerDirection.LEFT : CornerDirection.RIGHT;
 }
 
+// Dual-signal corner detection (yaw rate + track curvature)
+// Corner detected when BOTH signals exceed thresholds (eliminates false positives)
+// Features: direction reversal detection, multi-apex splitting, smart merging
 export function detectCornersYawCurvature(
   points: NormalizedTelemetryPoint[],
   config: Partial<YawCurvatureConfig> = {}
@@ -160,7 +224,10 @@ export function detectCornersYawCurvature(
 
   const curvatures = calculateCurvature(points);
   const yawRates = calculateYawRate(points);
-  const smoothedCurvature = smoothArray(curvatures, cfg.curvatureSmoothingWindow);
+  const smoothedCurvature = smoothArray(
+    curvatures,
+    cfg.curvatureSmoothingWindow
+  );
   const smoothedYawRate = smoothArray(yawRates, cfg.yawSmoothingWindow);
 
   let inCorner = false;
@@ -171,19 +238,38 @@ export function detectCornersYawCurvature(
   for (let i = 1; i < points.length; i++) {
     const curvature = smoothedCurvature[i];
     const yawRate = smoothedYawRate[i];
-    const isCornerCondition = curvature > cfg.minCurvatureThreshold && yawRate > cfg.minYawRateThreshold;
+    const isCornerCondition =
+      curvature > cfg.minCurvatureThreshold &&
+      yawRate > cfg.minYawRateThreshold;
 
     let currentYawSign = 0;
     if (i < points.length - 1) {
-      const deltaYaw = points[i].yaw !== 0 ?
-        normalizeAngle(points[i + 1].yaw - points[i].yaw) :
-        normalizeAngle(calculateHeading(points[i + 1].x, points[i + 1].y, points[Math.min(i + 2, points.length - 1)].x, points[Math.min(i + 2, points.length - 1)].y) -
-                      calculateHeading(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y));
+      const deltaYaw =
+        points[i].yaw !== 0
+          ? normalizeAngle(points[i + 1].yaw - points[i].yaw)
+          : normalizeAngle(
+              calculateHeading(
+                points[i + 1].x,
+                points[i + 1].y,
+                points[Math.min(i + 2, points.length - 1)].x,
+                points[Math.min(i + 2, points.length - 1)].y
+              ) -
+                calculateHeading(
+                  points[i].x,
+                  points[i].y,
+                  points[i + 1].x,
+                  points[i + 1].y
+                )
+            );
       currentYawSign = Math.sign(deltaYaw);
     }
 
-    const directionReversed = inCorner && lastYawSign !== 0 && currentYawSign !== 0 &&
-                               lastYawSign !== currentYawSign && yawRate > cfg.minYawRateThreshold;
+    const directionReversed =
+      inCorner &&
+      lastYawSign !== 0 &&
+      currentYawSign !== 0 &&
+      lastYawSign !== currentYawSign &&
+      yawRate > cfg.minYawRateThreshold;
 
     if (!inCorner && isCornerCondition) {
       inCorner = true;
@@ -191,13 +277,28 @@ export function detectCornersYawCurvature(
       lastYawSign = currentYawSign;
     } else if (inCorner && (!isCornerCondition || directionReversed)) {
       const cornerEndIdx = i - 1;
-      const cornerLength = points[cornerEndIdx].distance - points[cornerStartIdx].distance;
-      const cornerDuration = points[cornerEndIdx].time - points[cornerStartIdx].time;
+      const cornerLength =
+        points[cornerEndIdx].distance - points[cornerStartIdx].distance;
+      const cornerDuration =
+        points[cornerEndIdx].time - points[cornerStartIdx].time;
 
-      if (cornerLength >= cfg.minCornerLength && cornerDuration >= cfg.minCornerDuration) {
-        const apexIdx = findApex(smoothedCurvature, smoothedYawRate, cornerStartIdx, cornerEndIdx);
+      if (
+        cornerLength >= cfg.minCornerLength &&
+        cornerDuration >= cfg.minCornerDuration
+      ) {
+        const apexIdx = findApex(
+          smoothedCurvature,
+          smoothedYawRate,
+          cornerStartIdx,
+          cornerEndIdx
+        );
         const minSpeed = findMinSpeed(points, cornerStartIdx, cornerEndIdx);
-        const direction = calculateCornerDirection(smoothedYawRate, points, cornerStartIdx, cornerEndIdx);
+        const direction = calculateCornerDirection(
+          smoothedYawRate,
+          points,
+          cornerStartIdx,
+          cornerEndIdx
+        );
 
         const corner: Corner = {
           id: ++cornerId,
@@ -235,9 +336,17 @@ export function detectCornersYawCurvature(
   }
 
   const merged = mergeCloseCorners(corners, cfg.cornerMergeDistance);
-  return splitMultiApexCorners(merged, points, smoothedCurvature, smoothedYawRate, cfg);
+  return splitMultiApexCorners(
+    merged,
+    points,
+    smoothedCurvature,
+    smoothedYawRate,
+    cfg
+  );
 }
 
+// Split long corners (155-240m) with multiple yaw rate peaks (>0.10 rad/s, 60m apart)
+// Detects hairpins and chicanes that need separate analysis
 function splitMultiApexCorners(
   corners: Corner[],
   points: NormalizedTelemetryPoint[],
@@ -254,7 +363,10 @@ function splitMultiApexCorners(
       continue;
     }
 
-    const cornerYawRates = yawRates.slice(corner.entryIndex, corner.exitIndex + 1);
+    const cornerYawRates = yawRates.slice(
+      corner.entryIndex,
+      corner.exitIndex + 1
+    );
     const yawPeaks: number[] = [];
 
     for (let i = 15; i < cornerYawRates.length - 15; i++) {
@@ -267,15 +379,16 @@ function splitMultiApexCorners(
         cornerYawRates[i] > cornerYawRates[i + 10] &&
         cornerYawRates[i] > cornerYawRates[i - 15] &&
         cornerYawRates[i] > cornerYawRates[i + 15] &&
-        cornerYawRates[i] > 0.10;
+        cornerYawRates[i] > 0.1;
       if (isLocalMax) yawPeaks.push(i);
     }
 
     const significantPeaks: number[] = [];
     for (const peakIdx of yawPeaks) {
       const peakDistance = points[corner.entryIndex + peakIdx].distance;
-      const isSignificant = significantPeaks.every(existingIdx => {
-        const existingDistance = points[corner.entryIndex + existingIdx].distance;
+      const isSignificant = significantPeaks.every((existingIdx) => {
+        const existingDistance =
+          points[corner.entryIndex + existingIdx].distance;
         return Math.abs(peakDistance - existingDistance) >= 60;
       });
       if (isSignificant) significantPeaks.push(peakIdx);
@@ -328,9 +441,17 @@ function splitMultiApexCorners(
       apexSpeed: points[apex1Idx].speed,
       exitSpeed: points[globalSplitIdx].speed,
       minSpeed: minSpeed1,
-      maxGLat: Math.max(...curvatures.slice(corner.entryIndex, globalSplitIdx + 1)) * 100,
-      avgGLat: Math.max(...yawRates.slice(corner.entryIndex, globalSplitIdx + 1)) * 10,
-      direction: calculateCornerDirection(yawRates, points, corner.entryIndex, globalSplitIdx),
+      maxGLat:
+        Math.max(...curvatures.slice(corner.entryIndex, globalSplitIdx + 1)) *
+        100,
+      avgGLat:
+        Math.max(...yawRates.slice(corner.entryIndex, globalSplitIdx + 1)) * 10,
+      direction: calculateCornerDirection(
+        yawRates,
+        points,
+        corner.entryIndex,
+        globalSplitIdx
+      ),
       type: classifyCornerType(points[apex1Idx].speed),
       length: points[globalSplitIdx].distance - corner.entryDistance,
       entryIndex: corner.entryIndex,
@@ -347,9 +468,17 @@ function splitMultiApexCorners(
       apexSpeed: points[apex2Idx].speed,
       exitSpeed: corner.exitSpeed,
       minSpeed: minSpeed2,
-      maxGLat: Math.max(...curvatures.slice(globalSplitIdx, corner.exitIndex + 1)) * 100,
-      avgGLat: Math.max(...yawRates.slice(globalSplitIdx, corner.exitIndex + 1)) * 10,
-      direction: calculateCornerDirection(yawRates, points, globalSplitIdx, corner.exitIndex),
+      maxGLat:
+        Math.max(...curvatures.slice(globalSplitIdx, corner.exitIndex + 1)) *
+        100,
+      avgGLat:
+        Math.max(...yawRates.slice(globalSplitIdx, corner.exitIndex + 1)) * 10,
+      direction: calculateCornerDirection(
+        yawRates,
+        points,
+        globalSplitIdx,
+        corner.exitIndex
+      ),
       type: classifyCornerType(points[apex2Idx].speed),
       length: corner.exitDistance - points[globalSplitIdx].distance,
       entryIndex: globalSplitIdx,
@@ -363,6 +492,7 @@ function splitMultiApexCorners(
   return result;
 }
 
+// Merge corners with gap < mergeDistance/2 (fixes fragmentation from signal drops)
 function mergeCloseCorners(corners: Corner[], mergeDistance: number): Corner[] {
   if (corners.length <= 1) return corners;
 
@@ -382,9 +512,14 @@ function mergeCloseCorners(corners: Corner[], mergeDistance: number): Corner[] {
         length: next.exitDistance - current.entryDistance,
         maxGLat: Math.max(current.maxGLat, next.maxGLat),
         minSpeed: Math.min(current.minSpeed, next.minSpeed),
-        apexDistance: current.maxGLat > next.maxGLat ? current.apexDistance : next.apexDistance,
-        apexSpeed: current.maxGLat > next.maxGLat ? current.apexSpeed : next.apexSpeed,
-        apexIndex: current.maxGLat > next.maxGLat ? current.apexIndex : next.apexIndex,
+        apexDistance:
+          current.maxGLat > next.maxGLat
+            ? current.apexDistance
+            : next.apexDistance,
+        apexSpeed:
+          current.maxGLat > next.maxGLat ? current.apexSpeed : next.apexSpeed,
+        apexIndex:
+          current.maxGLat > next.maxGLat ? current.apexIndex : next.apexIndex,
         type: classifyCornerType(Math.min(current.minSpeed, next.minSpeed)),
       };
     } else {

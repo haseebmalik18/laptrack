@@ -1,3 +1,9 @@
+/**
+ * F1 2024 Telemetry Parser - Converts binary UDP packets to TypeScript objects
+ *
+ * Handles byte-level parsing with Little Endian format for F1 2024 telemetry spec.
+ */
+
 import {
   PacketHeader,
   PacketType,
@@ -11,9 +17,10 @@ import {
   CarMotionData,
   SessionData,
   ParticipantData,
-} from '../types/f1-2024-packets';
+} from "../types/f1-2024-packets";
 
 export class F1TelemetryParser {
+  // Parse packet header (29 bytes - identical across all packet types)
   parseHeader(buffer: Buffer): PacketHeader {
     return {
       packetFormat: buffer.readUInt16LE(0),
@@ -31,6 +38,7 @@ export class F1TelemetryParser {
     };
   }
 
+  // Parse telemetry packet (60Hz - speed, throttle, brake, gear, temps)
   parseCarTelemetry(buffer: Buffer): PacketCarTelemetryData | null {
     const header = this.parseHeader(buffer);
     if (header.packetId !== PacketType.CAR_TELEMETRY) return null;
@@ -101,6 +109,8 @@ export class F1TelemetryParser {
     };
   }
 
+  // Parse lap data packet (timing, sectors, position, pit status)
+  // BUG: lapDistance often 0 in Grand Prix mode
   parseLapData(buffer: Buffer): PacketLapData | null {
     const header = this.parseHeader(buffer);
     if (header.packetId !== PacketType.LAP_DATA) return null;
@@ -109,42 +119,42 @@ export class F1TelemetryParser {
     let offset = 29;
 
     for (let i = 0; i < 22; i++) {
-      // F1 2024 LapData structure - 54 bytes total (changed from F1 2023's 52 bytes)
+      // 54 bytes per car (2 bytes added in F1 2024)
       lapData.push({
-        lastLapTimeInMS: buffer.readUInt32LE(offset + 0),     // uint32 - 4 bytes
-        currentLapTimeInMS: buffer.readUInt32LE(offset + 4),  // uint32 - 4 bytes
-        sector1TimeInMS: buffer.readUInt16LE(offset + 8),     // uint16 - 2 bytes
-        sector1TimeMinutes: buffer.readUInt8(offset + 10),    // uint8 - 1 byte
-        sector2TimeInMS: buffer.readUInt16LE(offset + 11),    // uint16 - 2 bytes
-        sector2TimeMinutes: buffer.readUInt8(offset + 13),    // uint8 - 1 byte
-        deltaToCarInFrontInMS: buffer.readUInt16LE(offset + 14),      // uint16 - 2 bytes
-        deltaToCarInFrontMinutes: buffer.readUInt8(offset + 16),      // uint8 - 1 byte (NEW!)
-        deltaToRaceLeaderInMS: buffer.readUInt16LE(offset + 17),      // uint16 - 2 bytes
-        deltaToRaceLeaderMinutes: buffer.readUInt8(offset + 19),      // uint8 - 1 byte (NEW!)
-        lapDistance: buffer.readFloatLE(offset + 20),         // float - 4 bytes
-        totalDistance: buffer.readFloatLE(offset + 24),       // float - 4 bytes
-        safetyCarDelta: buffer.readFloatLE(offset + 28),      // float - 4 bytes
-        carPosition: buffer.readUInt8(offset + 32),           // uint8 - 1 byte
-        currentLapNum: buffer.readUInt8(offset + 33),         // uint8 - 1 byte
-        pitStatus: buffer.readUInt8(offset + 34),             // uint8 - 1 byte
-        numPitStops: buffer.readUInt8(offset + 35),           // uint8 - 1 byte
-        sector: buffer.readUInt8(offset + 36),                // uint8 - 1 byte
-        currentLapInvalid: buffer.readUInt8(offset + 37),     // uint8 - 1 byte
-        penalties: buffer.readUInt8(offset + 38),             // uint8 - 1 byte
-        totalWarnings: buffer.readUInt8(offset + 39),         // uint8 - 1 byte
-        cornerCuttingWarnings: buffer.readUInt8(offset + 40), // uint8 - 1 byte
-        numUnservedDriveThroughPens: buffer.readUInt8(offset + 41), // uint8 - 1 byte
-        numUnservedStopGoPens: buffer.readUInt8(offset + 42), // uint8 - 1 byte
-        gridPosition: buffer.readUInt8(offset + 43),          // uint8 - 1 byte
-        driverStatus: buffer.readUInt8(offset + 44),          // uint8 - 1 byte
-        resultStatus: buffer.readUInt8(offset + 45),          // uint8 - 1 byte
-        pitLaneTimerActive: buffer.readUInt8(offset + 46),    // uint8 - 1 byte
-        pitLaneTimeInLaneInMS: buffer.readUInt16LE(offset + 47), // uint16 - 2 bytes
-        pitStopTimerInMS: buffer.readUInt16LE(offset + 49),   // uint16 - 2 bytes
-        pitStopShouldServePen: buffer.readUInt8(offset + 51), // uint8 - 1 byte
+        lastLapTimeInMS: buffer.readUInt32LE(offset + 0),
+        currentLapTimeInMS: buffer.readUInt32LE(offset + 4),
+        sector1TimeInMS: buffer.readUInt16LE(offset + 8),
+        sector1TimeMinutes: buffer.readUInt8(offset + 10),
+        sector2TimeInMS: buffer.readUInt16LE(offset + 11),
+        sector2TimeMinutes: buffer.readUInt8(offset + 13),
+        deltaToCarInFrontInMS: buffer.readUInt16LE(offset + 14),
+        deltaToCarInFrontMinutes: buffer.readUInt8(offset + 16),
+        deltaToRaceLeaderInMS: buffer.readUInt16LE(offset + 17),
+        deltaToRaceLeaderMinutes: buffer.readUInt8(offset + 19),
+        lapDistance: buffer.readFloatLE(offset + 20),
+        totalDistance: buffer.readFloatLE(offset + 24),
+        safetyCarDelta: buffer.readFloatLE(offset + 28),
+        carPosition: buffer.readUInt8(offset + 32),
+        currentLapNum: buffer.readUInt8(offset + 33),
+        pitStatus: buffer.readUInt8(offset + 34),
+        numPitStops: buffer.readUInt8(offset + 35),
+        sector: buffer.readUInt8(offset + 36),
+        currentLapInvalid: buffer.readUInt8(offset + 37),
+        penalties: buffer.readUInt8(offset + 38),
+        totalWarnings: buffer.readUInt8(offset + 39),
+        cornerCuttingWarnings: buffer.readUInt8(offset + 40),
+        numUnservedDriveThroughPens: buffer.readUInt8(offset + 41),
+        numUnservedStopGoPens: buffer.readUInt8(offset + 42),
+        gridPosition: buffer.readUInt8(offset + 43),
+        driverStatus: buffer.readUInt8(offset + 44),
+        resultStatus: buffer.readUInt8(offset + 45),
+        pitLaneTimerActive: buffer.readUInt8(offset + 46),
+        pitLaneTimeInLaneInMS: buffer.readUInt16LE(offset + 47),
+        pitStopTimerInMS: buffer.readUInt16LE(offset + 49),
+        pitStopShouldServePen: buffer.readUInt8(offset + 51),
       });
 
-      offset += 54;  // Changed from 52 to 54 bytes per lap entry!
+      offset += 54; // Changed from 52 to 54 bytes per lap entry!
     }
 
     return {
@@ -155,6 +165,8 @@ export class F1TelemetryParser {
     };
   }
 
+  // Parse motion packet (60Hz - position, velocity, G-forces, yaw/pitch/roll)
+  // Critical for corner detection and track mapping
   parseMotionData(buffer: Buffer): PacketMotionData | null {
     const header = this.parseHeader(buffer);
     if (header.packetId !== PacketType.MOTION) return null;
@@ -193,6 +205,8 @@ export class F1TelemetryParser {
     };
   }
 
+  // Parse session packet (~2Hz - track info, weather, session type)
+  // Contains track ID essential for corner database lookup
   parseSessionData(buffer: Buffer): PacketSessionData | null {
     const header = this.parseHeader(buffer);
     if (header.packetId !== PacketType.SESSION) return null;
@@ -257,6 +271,8 @@ export class F1TelemetryParser {
     };
   }
 
+  // Parse participants packet (driver names, teams, nationalities)
+  // Sent once at session start
   parseParticipantsData(buffer: Buffer): PacketParticipantsData | null {
     const header = this.parseHeader(buffer);
     if (header.packetId !== PacketType.PARTICIPANTS) return null;
@@ -269,7 +285,7 @@ export class F1TelemetryParser {
 
     for (let i = 0; i < 22; i++) {
       const nameBytes = buffer.subarray(offset + 7, offset + 55);
-      const nameStr = nameBytes.toString('utf-8').replace(/\0/g, '').trim();
+      const nameStr = nameBytes.toString("utf-8").replace(/\0/g, "").trim();
 
       participants.push({
         aiControlled: buffer.readUInt8(offset),

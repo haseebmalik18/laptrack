@@ -1,3 +1,10 @@
+/**
+ * G-Force Analysis - Analyzes lateral/longitudinal G-forces for lap comparison
+ *
+ * Calculates corner-by-corner G-force metrics and generates multi-metric insights.
+ * Formula: combinedG = sqrt(lateralG² + longitudinalG²)
+ */
+
 import { NormalizedTelemetryPoint } from '../types/f1-2024-packets';
 import { AlignedLaps } from './lap-aligner';
 import { CornerDatabase, CornerDatabaseEntry } from './corner-database';
@@ -97,6 +104,7 @@ export class GForceAnalyzer {
     this.cornerDb = new CornerDatabase(config.cornerDbPath);
   }
 
+  // Analyze G-forces across entire lap with corner-by-corner breakdown
   analyzeGForces(
     aligned: AlignedLaps,
     trackName: string,
@@ -119,6 +127,7 @@ export class GForceAnalyzer {
     };
   }
 
+  // Calculate G-force point from telemetry (uses F1 2024 gLat/gLong data)
   private calculateGForces(lap: NormalizedTelemetryPoint[]): GForcePoint[] {
     return lap.map(point => {
       const lateralG = Math.abs(point.gLat);
@@ -137,6 +146,7 @@ export class GForceAnalyzer {
     });
   }
 
+  // Calculate heading from X/Y position
   private calculateHeading(lap: NormalizedTelemetryPoint[], index: number): number | undefined {
     if (index === 0) return undefined;
 
@@ -318,11 +328,12 @@ export class GForceAnalyzer {
     };
   }
 
+  // Generate multi-metric insight by correlating G-forces + speeds (WIP - tuning thresholds)
   private generateInsight(corner: CornerGForceAnalysis): CornerInsight {
     const entrySpeedSimilar = Math.abs(corner.entrySpeed.delta) < 10;
-    const largeLateralGDiff = Math.abs(corner.avgLateralG.delta) > 0.3;  // Lowered from 0.5
-    const largeBrakingGDiff = Math.abs(corner.peakBrakingG.delta) > 0.5; // Lowered from 1.0
-    const largeEntrySpeedDiff = Math.abs(corner.entrySpeed.delta) > 15;  // Lowered from 20
+    const largeLateralGDiff = Math.abs(corner.avgLateralG.delta) > 0.3;
+    const largeBrakingGDiff = Math.abs(corner.peakBrakingG.delta) > 0.5;
+    const largeEntrySpeedDiff = Math.abs(corner.entrySpeed.delta) > 15;
     const apexSpeedDelta = corner.apexSpeed.delta;
     const exitSpeedDelta = corner.exitSpeed.delta;
 
