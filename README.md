@@ -208,7 +208,7 @@ Now both laps have identical distance arrays, enabling direct comparison.
 
 ---
 
-## Bug Fixes
+## Implementation Challenges
 
 ### Byte Offset Corrections
 
