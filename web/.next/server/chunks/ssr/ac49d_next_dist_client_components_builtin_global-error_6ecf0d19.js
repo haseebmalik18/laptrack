@@ -1,0 +1,3 @@
+module.exports=[80369,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(15214);a.n(d("[project]/Desktop/lap-lens/web/node_modules/next/dist/client/components/builtin/global-error.js <module evaluation>"))},66101,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(15214);a.n(d("[project]/Desktop/lap-lens/web/node_modules/next/dist/client/components/builtin/global-error.js"))},70386,a=>{"use strict";a.i(80369);var b=a.i(66101);a.n(b)}];
+
+//# sourceMappingURL=ac49d_next_dist_client_components_builtin_global-error_6ecf0d19.js.map

@@ -226,4 +226,5 @@ export interface NormalizedTelemetryPoint {
   gLat: number;                  // Lateral G (cornering)
   gLong: number;                 // Longitudinal G (braking/accel)
   yaw: number;                   // Radians - for corner detection
+  [key: string]: number;         // Index signature for interpolation
 }

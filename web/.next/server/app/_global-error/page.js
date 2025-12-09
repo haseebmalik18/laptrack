@@ -1,0 +1,11 @@
+var R=require("../../chunks/ssr/[turbopack]_runtime.js")("server/app/_global-error/page.js")
+R.c("server/chunks/ssr/[root-of-the-server]__4cbe451a._.js")
+R.c("server/chunks/ssr/Desktop_lap-lens_web_de0b6523._.js")
+R.c("server/chunks/ssr/ac49d_next_dist_0fd31c4b._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__f8b94a01._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__723f68f8._.js")
+R.c("server/chunks/ssr/ac49d_next_dist_e29e0f0a._.js")
+R.c("server/chunks/ssr/Desktop_lap-lens_web_app_576aecf4._.js")
+R.c("server/chunks/ssr/3d860_lap-lens_web__next-internal_server_app__global-error_page_actions_7991f768.js")
+R.m(43215)
+module.exports=R.m(43215).exports
