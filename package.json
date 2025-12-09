@@ -1,7 +1,7 @@
 {
   "name": "laptrack",
   "version": "1.0.0",
-  "description": "Professional telemetry analysis for F1 2024 - Real-time data capture, corner-by-corner performance insights, and comprehensive lap comparison",
+  "description": "Real-time UDP telemetry parser for F1 2024 - Binary protocol parsing and lap data ingestion",
   "main": "dist/index.js",
   "repository": {
     "type": "git",
@@ -14,30 +14,23 @@
   "scripts": {
     "dev": "tsx src/cli/udp-listener.ts",
     "build": "tsc",
-    "start": "node dist/cli/udp-listener.js",
-    "test": "echo \"Tests coming soon\" && exit 0",
-    "test:normalizer": "tsx src/test-normalizer.ts"
+    "start": "node dist/cli/udp-listener.js"
   },
   "keywords": [
     "f1",
     "telemetry",
     "udp",
-    "racing",
-    "sim",
     "f1-2024",
-    "motorsport",
-    "analysis",
-    "lap-time",
-    "sim-racing",
-    "telemetry-analysis",
-    "corner-analysis",
-    "gforce"
+    "binary-parser",
+    "real-time",
+    "networking",
+    "packet-parser",
+    "sim-racing"
   ],
   "author": "Haseeb Malik <haseebmalik18>",
   "license": "MIT",
   "dependencies": {
-    "chalk": "^4.1.2",
-    "dgram": "^1.0.1"
+    "chalk": "^4.1.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

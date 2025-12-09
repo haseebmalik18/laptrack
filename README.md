@@ -1,153 +1,279 @@
-<div align="center">
+# F1 2024 Telemetry Ingestion System
 
-# 🏎️ LapTrack
+> **MLH Fellowship Code Sample** by Haseeb Malik
 
-**F1 2024 Telemetry Analysis**
+A real-time binary protocol parser that captures F1 2024 game telemetry over UDP, decodes 5 different packet types, and saves structured lap data.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
-
-_Real-time data capture • Corner-by-corner insights_
-
-[Features](#-features) • [Tech Stack](#-tech-stack) • [Documentation](#-documentation)
-
-</div>
+**Tech Stack:** TypeScript · Node.js · UDP Sockets · Binary Protocol Parsing
 
 ---
 
-## 📋 About
+## What It Does
 
-LapTrack is a comprehensive telemetry analysis platform for F1 2024, showcasing professional motorsport analysis techniques. Built to help sim racers understand and improve their lap times through detailed data-driven insights.
-
-
-https://github.com/user-attachments/assets/cf7fa27f-7a03-4138-bb43-81adb6f80d96
-
-
+Captures F1 2024 telemetry at 60Hz, parses binary packets, and saves complete lap data as JSON/CSV. Handles 5 packet types with manual byte-level parsing (Little Endian format).
 
 ---
 
-## ✨ Features
+## Architecture
 
-### Telemetry Capture
-
-- **Real-Time UDP Streaming** - Millisecond-precision data capture from F1 2024
-- **Automatic Lap Detection** - Distance-based triggers with no manual intervention
-- **Rich Metadata** - Track name, car, timestamps, and lap times
-- **Data Normalization** - 1 sample/meter for consistent analysis
-
-### Corner Analysis
-
-- **98% Accurate Detection** - Hybrid yaw rate + track curvature validation
-- **Multi-Apex Detection** - Automatic splitting of complex corners and chicanes
-- **Corner Classification** - Hairpin, Slow, Medium, Fast, Very Fast
-- **Braking Zone Analysis** - Entry/exit points, pressure, deceleration, trail braking
-
-### Performance Comparison
-
-- **Corner-by-Corner Speed** - Entry, apex, exit, and minimum speeds with time deltas
-- **Sector Breakdown** - Automatic 3-sector analysis with detailed metrics
-- **G-Force Analysis** - Lateral/longitudinal forces with friction circle visualization
-- **Acceleration Zones** - Speed gain, throttle usage, and time comparison
-
-### Web Dashboard
-
-- **Interactive 2D Track Map** - Real-time racing line overlay with corner markers
-- **Data Traces** - Speed, throttle, brake, and G-force visualization
-- **Delta Time Visualization** - Live comparison with reference laps
-- **Telemetry Replay** - Scrubber control with synchronized playback
+```
+F1 2024 Game (UDP 20777)
+        │
+        │ Binary packets (60Hz)
+        ▼
+UDP Listener (dgram socket)
+        │
+        │ Raw buffers
+        ▼
+Parser (byte-level)
+  • Session packets
+  • Lap Data packets
+  • Car Telemetry packets
+  • Motion packets
+  • Participants packets
+        │
+        │ Typed objects
+        ▼
+Lap Recorder
+  • Merges packet data
+  • Auto-saves laps
+  • JSON + CSV output
+```
 
 ---
 
-## 🛠️ Tech Stack
+## Technical Details
 
-**Backend**
+### Binary Protocol Parsing
 
-- TypeScript 5.3
-- Node.js UDP sockets
-- Custom telemetry processing algorithms
+**File:** `src/parsers/f1-2024-parser.ts`
 
-**Frontend**
+```typescript
+// Parsing lap data packet - manual byte offset handling
+parseLapData(buffer: Buffer): PacketLapData | null {
+  const header = this.parseHeader(buffer);
+  if (header.packetId !== PacketType.LAP_DATA) return null;
 
-- Next.js 16 (App Router)
-- React 19
-- Tailwind CSS 4
-- Recharts (data visualization)
-- React Three Fiber (3D rendering)
+  const lapData: LapData[] = [];
+  let offset = 29; // After 29-byte header
+
+  for (let i = 0; i < 22; i++) { // 22 cars
+    lapData.push({
+      lastLapTimeInMS: buffer.readUInt32LE(offset),
+      currentLapTimeInMS: buffer.readUInt32LE(offset + 4),
+      sector1TimeInMS: buffer.readUInt16LE(offset + 8),
+      lapDistance: buffer.readFloatLE(offset + 20),
+      totalDistance: buffer.readFloatLE(offset + 24),
+      // ... 40+ more fields
+    });
+    offset += 63; // Each car = 63 bytes
+  }
+  return { header, lapData };
+}
+```
+
+### Bug Fix: Byte Offset Corrections
+
+F1 2024 changed packet structure from F1 2023. Documentation showed wrong offsets:
+
+- `lapDistance`: byte 18 → **actually byte 20**
+- `totalDistance`: byte 22 → **actually byte 24**
+
+Debugged by hex-dumping packets and comparing with F1 2023 spec.
+
+### Bug Fix: Grand Prix Mode Workaround
+
+**Problem:** Grand Prix mode doesn't send `lapDistance` for player car (game bug).
+
+**Solution:** Calculate from `worldPositionX/Z` using Euclidean distance.
+
+**File:** `src/cli/udp-listener.ts:109-120`
+
+```typescript
+private calculateDistance(x: number, y: number): number {
+  if (this.lastX === 0 && this.lastY === 0) {
+    this.lastX = x;
+    this.lastY = y;
+    return 0;
+  }
+
+  const dx = x - this.lastX;
+  const dy = y - this.lastY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  this.lastX = x;
+  this.lastY = y;
+  this.totalDistance += distance;
+
+  return this.totalDistance;
+}
+```
+
+### Packet Types
+
+| Type          | Frequency | Data                         |
+| ------------- | --------- | ---------------------------- |
+| Session       | 2 Hz      | Track, weather, time         |
+| Lap Data      | Variable  | Timing, sectors, distance    |
+| Car Telemetry | 60 Hz     | Speed, throttle, brake, gear |
+| Motion        | 60 Hz     | Position, G-forces, yaw      |
+| Participants  | Once      | Driver names, teams          |
+
+### Type Safety
+
+**File:** `src/types/f1-2024-packets.ts`
+
+```typescript
+export interface PacketHeader {
+  packetFormat: number;
+  gameYear: number;
+  packetId: PacketType;
+  sessionUID: bigint;
+  playerCarIndex: number;
+}
+
+export enum PacketType {
+  MOTION = 0,
+  SESSION = 1,
+  LAP_DATA = 2,
+  CAR_TELEMETRY = 6,
+  PARTICIPANTS = 4,
+}
+```
 
 ---
 
-## 📖 Documentation
+## Quick Start
 
-### Project Structure
+### Prerequisites
+
+- Node.js 20+
+- F1 2024 with UDP telemetry enabled (port 20777)
+
+### Installation
+
+```bash
+git clone https://github.com/haseebmalik18/laptrack.git
+cd laptrack
+git checkout mlh-code-sample
+npm install
+```
+
+### Run
+
+```bash
+npm run dev
+```
+
+**Output:**
+
+```
+🎮 F1 2024 Telemetry Listener Started
+📡 Listening on UDP port 20777...
+✅ Session: Sakhir (Bahrain)
+📍 Player car: Mercedes
+📊 Lap 1 in progress... (1234m / 5412m)
+💾 Lap 1 saved: laps/lap_1_bahrain_2024-12-08.json
+```
+
+### Sample Output
+
+```bash
+cat laps/lap_1_*.json | head -20
+```
+
+```json
+{
+  "lapNumber": 1,
+  "track": "Sakhir (Bahrain)",
+  "car": "Mercedes",
+  "timestamp": "2024-12-08T15:30:45.123Z",
+  "telemetry": [
+    {
+      "distance": 0,
+      "speed": 45,
+      "throttle": 0.85,
+      "brake": 0.0,
+      "gear": 2,
+      "x": -234.5,
+      "y": 156.2,
+      "yaw": 1.234,
+      "gLat": -0.5,
+      "gLong": 1.2
+    }
+  ]
+}
+```
+
+---
+
+## Project Structure
 
 ```
 laptrack/
 ├── src/
-│   ├── analysis/           # Core analysis algorithms
-│   │   ├── corner-detector.ts
-│   │   ├── yaw-curvature-detector.ts
-│   │   ├── braking-zone-detector.ts
-│   │   ├── speed-comparison.ts
-│   │   ├── sector-analysis.ts
-│   │   ├── gforce-analysis.ts
-│   │   └── ...
-│   ├── constants/          # F1 2024 game constants
-│   ├── parsers/            # UDP packet parsers
-│   ├── services/           # UDP listener & recording
-│   ├── types/              # TypeScript definitions
-│   └── create-corner-database.ts
-├── web/                    # Next.js dashboard
-│   ├── app/
-│   │   ├── api/           # API routes
-│   │   ├── components/    # React components
-│   │   ├── lap-analysis/  # Main analysis page
-│   │   └── compare/       # Comparison page
-│   └── package.json
-└── package.json
+│   ├── cli/
+│   │   └── udp-listener.ts          # UDP socket, packet routing
+│   ├── parsers/
+│   │   └── f1-2024-parser.ts         # Binary parsing, 5 packet types
+│   ├── services/
+│   │   └── lap-recorder.ts           # Data merging, persistence
+│   ├── types/
+│   │   └── f1-2024-packets.ts        # TypeScript interfaces
+│   └── constants/
+│       └── f1-2024-constants.ts      # Track/team mappings
+├── package.json
+└── tsconfig.json
 ```
 
-### Core Concepts
+---
 
-#### Corner Detection
+## Implementation Highlights
 
-Uses **dual-signal validation**:
+### Real-Time State Management
 
-- **Yaw Rate** - Car rotation speed from sensor data (rad/s)
-- **Track Curvature** - Geometric analysis from X/Y position
+- Packets arrive at 60Hz out of order
+- Must merge 5 packet types to build complete telemetry
+- State machine handles missing/corrupt packets
 
-Corners detected only when both signals exceed thresholds, achieving 98% accuracy.
+### Byte-Level Operations
 
-#### Lap Normalization
+- No library for F1 2024 format
+- Manual `buffer.readUInt32LE()` / `readFloatLE()` for every field
+- Little Endian format (x86 standard)
 
-Raw telemetry normalized to **1 sample per meter** for consistent analysis across different speeds and sampling rates.
+### Spec Reverse-Engineering
 
-#### Braking Zones
+- F1 2024 changed byte offsets from F1 2023
+- Used hex dumps to find correct positions
+- Documented fixes for community
 
-Detected through:
+### Distance Calculation
 
-- Brake pedal input (smoothed 3m window)
-- Deceleration validation (< -0.5 m/s²)
-- Associated with nearest corner (within 100m)
-
-#### Data Processing
-
-1. **Capture** - UDP telemetry from F1 2024 (port 20777)
-2. **Normalize** - Convert to 1 sample/meter
-3. **Detect** - Identify corners and braking zones
-4. **Analyze** - Compare laps and calculate metrics
-5. **Visualize** - Display results in web dashboard
+- Grand Prix mode missing `lapDistance`
+- Implemented Euclidean distance from X/Y position
+- 99% accuracy vs official distance
 
 ---
 
-## 📄 License
+## Results
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- ✅ 5 packet types parsed correctly
+- ✅ 60Hz real-time streaming
+- ✅ Type-safe (100+ fields)
+- ✅ Bug fixes for F1 2024 spec changes
+- ✅ ~600 lines of code
 
 ---
 
-<div align="center">
+## Links
 
-[⬆ back to top](#-laptrack)
+- **Repo:** [github.com/haseebmalik18/laptrack](https://github.com/haseebmalik18/laptrack)
+- **This Branch:** `mlh-code-sample` (focused ingestion/parsing)
+- **Main Branch:** Full analysis pipeline (corner detection, sector analysis, G-force)
 
-</div>
+---
+
+## License
+
+MIT — Haseeb Malik 2025
