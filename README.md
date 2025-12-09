@@ -32,7 +32,7 @@ Binary Parser
   • Motion packets (position, G-forces, yaw)
   • Participants packets (driver names, teams)
         |
-        | Typed objects (17,340 points/lap)
+        | Typed objects (Est. 17,340 points/lap)
         v
 Lap Recorder
   • Merges packet types
@@ -47,7 +47,7 @@ Interpolation Engine
         v
 Normalizer
   • Converts to 1 sample/meter
-  • Reduces 17,340 → 5,452 points
+  • Reduces Est. 17,340 → Est. 5,452 points
         |
         | Evenly-spaced data
         v
@@ -67,7 +67,7 @@ JSON/CSV Output
 
 **File:** `src/parsers/f1-2024-parser.ts`
 
-Manual byte-level parsing of F1 2024 UDP packets. No library available for this format.
+Manual byte-level parsing of F1 2024 UDP packets.
 
 ```typescript
 parseLapData(buffer: Buffer): PacketLapData | null {
@@ -382,8 +382,6 @@ Complexity: O(n) where n = number of input points
 3. For each target distance, find surrounding points
 4. Interpolate all fields at that distance
 5. Return normalized array
-
-Complexity: O(n) single pass through sorted data
 
 ### Distance Calculation
 
